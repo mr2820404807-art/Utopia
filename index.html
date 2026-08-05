@@ -130,6 +130,19 @@ canvas{display:block}
 .aoh-popup .popup-title{font-size:18px;font-weight:600;color:#e0d0a0;letter-spacing:2px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .aoh-popup .popup-close{margin-left:auto;width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,100,80,.3);background:transparent;color:#aa8877;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .aoh-popup .popup-close:hover{background:rgba(255,80,60,.2);border-color:rgba(255,120,100,.6);color:#fff}
+#saves-popup{z-index:600}
+.saves-list{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto}
+.save-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(80,120,200,.2);border-radius:8px;background:rgba(20,28,50,.35);transition:border-color .2s}
+.save-row:hover{border-color:rgba(100,180,255,.4)}
+.save-row .save-name{font-size:13px;font-weight:600;color:#e0d0a0;min-width:56px;flex-shrink:0}
+.save-row .save-meta{flex:1;font-size:11px;color:#8899aa;line-height:1.5}
+.save-row .save-actions{display:flex;gap:6px;flex-shrink:0}
+.save-row .save-btn{padding:5px 10px;border-radius:5px;border:1px solid rgba(100,180,255,.3);background:rgba(20,35,60,.5);color:#bbddee;font-size:11px;cursor:pointer;transition:all .2s}
+.save-row .save-btn:hover{background:rgba(40,70,120,.7);color:#fff}
+.save-row .save-btn.load{border-color:rgba(120,200,120,.35);color:#aaddaa}
+.save-row .save-btn.load:hover{background:rgba(40,90,50,.6)}
+.save-row .save-btn.del{border-color:rgba(255,110,90,.35);color:#dd9988}
+.save-row .save-btn.del:hover{background:rgba(90,35,25,.6)}
 .aoh-popup .tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .aoh-popup .tech-card{padding:10px;border:1px solid rgba(80,120,200,.2);border-radius:8px;background:rgba(20,28,50,.5);cursor:pointer;transition:all .2s}
 .aoh-popup .tech-card:hover{border-color:rgba(100,180,255,.5);background:rgba(30,45,80,.6)}
@@ -179,6 +192,8 @@ body{overflow:hidden}
   <div class="menu-title">乌 托 邦</div>
   <div class="menu-sub">UTOPIA · 3D STRATEGY</div>
   <button class="menu-btn" id="btn-start">开 始 游 戏</button>
+  <button class="menu-btn" id="btn-continue">继 续 游 戏</button>
+  <button class="menu-btn" id="btn-saves">存 档 管 理</button>
   <button class="menu-btn" id="btn-settings">设 置</button>
 </div>
 
@@ -294,7 +309,17 @@ body{overflow:hidden}
 <div id="pause-overlay">
   <div id="pause-menu">
     <button class="pause-btn" id="btn-resume">继 续 游 戏</button>
+    <button class="pause-btn" id="btn-save">保 存 游 戏</button>
+    <button class="pause-btn" id="btn-open-saves">存 档 管 理</button>
     <button class="pause-btn danger" id="btn-to-menu">返 回 主 菜 单</button>
+  </div>
+</div>
+
+<!-- 存档管理弹窗 -->
+<div class="aoh-popup-overlay" id="saves-popup">
+  <div class="aoh-popup" style="min-width:480px">
+    <div class="popup-title">存 档 管 理<span class="popup-close" id="saves-close">✕</span></div>
+    <div id="saves-list" class="saves-list"></div>
   </div>
 </div>
 
@@ -545,6 +570,25 @@ const armyTrailGroup = new THREE.Group();
 armyTrailGroup.name = 'armyTrails';
 earthGroup.add(armyTrailGroup);
 
+// 球面大圆插值：在单位球面上的两个点之间沿大圆弧插值（军队始终贴地球表面移动，不穿地）
+function slerpSphere(a, b, t) {
+  const va = a.clone().normalize();
+  const vb = b.clone().normalize();
+  const dot = Math.max(-1, Math.min(1, va.dot(vb)));
+  const omega = Math.acos(dot);
+  if (omega < 1e-4) return a.clone();
+  const so = Math.sin(omega);
+  return va.multiplyScalar(Math.sin((1 - t) * omega) / so)
+    .addScaledVector(vb, Math.sin(t * omega) / so)
+    .normalize()
+    .multiplyScalar(1.02);
+}
+
+// 缓入缓出：起步与停下更自然
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 function drawArmyTrail(path) {
   const points = [];
   for (const name of path) {
@@ -552,59 +596,28 @@ function drawArmyTrail(path) {
     if (pos) points.push(pos);
   }
   if (points.length < 2) return;
-  if (points.length === 2) {
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-    const lineMat = new THREE.LineBasicMaterial({ color: 0xff6633, transparent: true, opacity: 0.7, linewidth: 2 });
-    armyTrailGroup.add(new THREE.Line(lineGeo, lineMat));
-    return;
+  // 用球面插值采样，让路线贴地球表面
+  const pts = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const steps = 24;
+    for (let s = 0; s < steps; s++) {
+      pts.push(slerpSphere(points[i], points[i + 1], s / steps));
+    }
   }
-  const curve = new THREE.CatmullRomCurve3(points);
-  const curvePts = curve.getPoints(128);
-  const lineGeo = new THREE.BufferGeometry().setFromPoints(curvePts);
+  pts.push(points[points.length - 1].clone());
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
   const lineMat = new THREE.LineBasicMaterial({ color: 0xff6633, transparent: true, opacity: 0.7, linewidth: 2 });
   armyTrailGroup.add(new THREE.Line(lineGeo, lineMat));
 }
 
-let armyCurve = null;
-let armyCurveSegCount = 0;
-
-function animateArmyPath(path, troops, countryCode, daysPerHop) {
+function animateArmyPath(path, troops, countryCode, daysPerHop, invade) {
   const points = [];
   for (const name of path) {
     const pos = getProvinceCenter(name);
     if (pos) points.push(pos);
   }
   if (points.length < 2) return;
-  if (points.length === 2) {
-    const from = points[0], to = points[1];
-    const canvas = document.createElement('canvas');
-    canvas.width = 128; canvas.height = 80;
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, 128, 80);
-    const cx = 64, cy = 24;
-    const flagUrl = getFlagUrl(countryCode);
-    if (flagUrl) {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => { ctx.drawImage(img, cx - 20, cy - 12, 40, 24); moveMat.map.needsUpdate = true; };
-      img.src = flagUrl;
-    }
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 13px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(troops >= 1000 ? (troops/1000).toFixed(1)+'k' : troops, cx, cy + 18);
-    const moveTexture = new THREE.CanvasTexture(canvas);
-    const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: false });
-    const sprite = new THREE.Sprite(moveMat);
-    sprite.scale.set(0.025, 0.016, 1);
-    sprite.position.copy(from);
-    armyMarkers.add(sprite);
-    lastFrameTime = performance.now();
-    armyAnimations.push({ sprite, from: from.clone(), to: to.clone(), progress: 0, speed: 1 / (daysPerHop * 8), troops, toName: path[path.length - 1] });
-    return;
-  }
-  const curve = new THREE.CatmullRomCurve3(points);
+
   const canvas = document.createElement('canvas');
   canvas.width = 128; canvas.height = 80;
   const ctx = canvas.getContext('2d');
@@ -628,10 +641,20 @@ function animateArmyPath(path, troops, countryCode, daysPerHop) {
   sprite.scale.set(0.025, 0.016, 1);
   sprite.position.copy(points[0]);
   armyMarkers.add(sprite);
-  armyCurve = curve;
-  armyCurveSegCount = (path.length - 1) * daysPerHop * 8;
   lastFrameTime = performance.now();
-  armyAnimations.push({ sprite, progress: 0, speed: 1 / armyCurveSegCount, troops, toName: path[path.length - 1] });
+
+  // 每个动画自带球面路径点（多军队并行移动互不干扰）
+  // seg: 当前段索引, segT: 段内进度 0~1, segDur: 每段所需 tick 数
+  armyAnimations.push({
+    sprite,
+    path: points,
+    seg: 0,
+    segT: 0,
+    segDur: Math.max(1, (daysPerHop || 1) * 8),
+    troops,
+    toName: path[path.length - 1],
+    invade,
+  });
 }
 
 function aohSmoothArmyPositions() {
@@ -640,15 +663,19 @@ function aohSmoothArmyPositions() {
   lastFrameTime = now;
   const moveSpeed = timeRunning ? SPEED_LEVELS[speedIndex] : 0;
   for (const anim of armyAnimations) {
-    anim.progress += dt * moveSpeed * anim.speed;
-    if (anim.progress >= 1) {
-      anim.sprite.position.copy(armyCurve ? armyCurve.getPoint(1) : anim.to);
-      anim.done = true;
-      continue;
+    if (anim.done || !anim.path || anim.path.length < 2) continue;
+    anim.segT += dt * moveSpeed * (1 / anim.segDur);
+    if (anim.segT >= 1) {
+      anim.seg++;
+      anim.segT = 0;
+      if (anim.seg >= anim.path.length - 1) {
+        anim.sprite.position.copy(anim.path[anim.path.length - 1]);
+        anim.done = true;
+        continue;
+      }
     }
-    if (armyCurve) {
-      anim.sprite.position.copy(armyCurve.getPoint(anim.progress));
-    }
+    // 球面大圆插值 + 缓入缓出：军队贴地球表面、起步减速自然
+    anim.sprite.position.copy(slerpSphere(anim.path[anim.seg], anim.path[anim.seg + 1], easeInOutCubic(anim.segT)));
   }
 }
 
@@ -783,7 +810,7 @@ const bumpMap = createBumpMap();
     processChunk();
   };
   img.onerror = () => { document.getElementById('loading').textContent = '贴图加载失败'; };
-  img.src = 'earth_hd.jpg';
+  img.src = 'assets/earth_hd.jpg';
 })();
 
 
@@ -795,12 +822,29 @@ function createBorderOverlay() {
   provinceCanvas.width = 8192; provinceCanvas.height = 4096;
   const pctx = provinceCanvas.getContext('2d');
 
-  const countriesUrl = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson';
-  const provincesUrl = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson';
+  // 本地 GeoJSON 优先（离线可用、加载快），失败时回退到 CDN
+  const localCountriesUrl = 'ne-temp/geojson/ne_50m_admin_0_countries.geojson';
+  const localProvincesUrl = 'ne-temp/geojson/ne_50m_admin_1_states_provinces.geojson';
+  const cdnCountriesUrl = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson';
+  const cdnProvincesUrl = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson';
+  function fetchGeoJSON(urls) {
+    let i = 0;
+    return new Promise((resolve, reject) => {
+      function next() {
+        if (i >= urls.length) { reject(new Error('all geojson sources failed')); return; }
+        const u = urls[i++];
+        fetch(u).then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).then(resolve, () => next());
+      }
+      next();
+    });
+  }
 
   Promise.all([
-    fetch(countriesUrl).then(r => r.json()),
-    fetch(provincesUrl).then(r => r.json()),
+    fetchGeoJSON([localCountriesUrl, cdnCountriesUrl]),
+    fetchGeoJSON([localProvincesUrl, cdnProvincesUrl]),
   ])
   .then(([countries, provinces]) => {
     function toCanvas(lon, lat, w, h) { return [(lon + 180) / 360 * w, (90 - lat) / 180 * h]; }
@@ -904,6 +948,18 @@ function createBorderOverlay() {
       });
     }
     drawFilledGeoJSON(countries, colorCtx, colorCanvas.width, colorCanvas.height);
+    // 保存基础色备份（无玩家高亮），重绘领土时先快速恢复基础色再叠加玩家色
+    const baseCanvas = document.createElement('canvas');
+    baseCanvas.width = colorCanvas.width; baseCanvas.height = colorCanvas.height;
+    baseCanvas.getContext('2d').drawImage(colorCanvas, 0, 0);
+    window.__baseColorCanvas = baseCanvas;
+
+    // 暴露给全局：宣战/占领后重绘领土颜色需要
+    window.__colorCanvas = colorCanvas;
+    window.__colorCtx = colorCtx;
+    window.__countryColorMap = countryColors;
+    window.__drawFilledGeoJSON = drawFilledGeoJSON;
+    window.__toCanvasFn = toCanvas;
 
     const colorTex = new THREE.CanvasTexture(colorCanvas);
     colorTex.colorSpace = THREE.SRGBColorSpace;
@@ -1726,7 +1782,9 @@ function aohShowRightPanel(feature, level) {
   const cnCountry = window.__chineseNames?.[admin] || admin;
   const flagUrl = getFlagUrl(admin);
   const provEcon = aohGetProvinceEcon(name);
-  const isOwnCountry = confirmedCountry && admin === confirmedCountry.enName;
+  // 归属判定：优先看领土归属记录（被占领省份视为自己国家），否则看所属国家
+  const owner = (window.__territoryOwner && window.__territoryOwner[name]) || admin;
+  const isOwnCountry = confirmedCountry && (owner === confirmedCountry.enName);
 
   let buildHtml = '';
   if (isOwnCountry && level === 'province') {
@@ -1764,6 +1822,19 @@ function aohShowRightPanel(feature, level) {
     </div>
   ` : '';
 
+  // 别国/敌对省份：显示宣战按钮（玩家本土和被占领领土不显示）
+  const warHtml = (!isOwnCountry && confirmedCountry && level === 'province') ? `
+    <div class="rp-divider"></div>
+    <div class="rp-section">
+      <div class="rp-section-title">军事行动</div>
+      <button id="rp-btn-declare-war" style="width:100%;padding:8px;border:1px solid rgba(255,90,70,.5);border-radius:6px;background:rgba(80,20,15,.4);color:#ff9a88;font-size:13px;cursor:pointer;transition:all .2s;font-weight:600;">⚔ 宣战 ${cnCountry}</button>
+      <div id="rp-war-actions" style="display:none;margin-top:6px;flex-direction:column;gap:6px;">
+        <button id="rp-war-invade" style="width:100%;padding:7px;border:1px solid rgba(100,180,255,.4);border-radius:6px;background:rgba(20,40,70,.4);color:#bbddee;font-size:12px;cursor:pointer;transition:all .2s;">🚶 派兵入侵</button>
+        <button id="rp-war-missile" style="width:100%;padding:7px;border:1px solid rgba(255,170,60,.4);border-radius:6px;background:rgba(70,45,10,.4);color:#ffce8a;font-size:12px;cursor:pointer;transition:all .2s;">🚀 导弹轰炸（需导弹）</button>
+      </div>
+    </div>
+  ` : '';
+
   panel.innerHTML = `
     <div class="rp-header">
       <img class="rp-flag" src="${flagUrl}" alt="">
@@ -1776,6 +1847,7 @@ function aohShowRightPanel(feature, level) {
     </div>
     ${buildHtml}
     ${recruitHtml}
+    ${warHtml}
   `;
 
   if (isOwnCountry && level === 'province') {
@@ -1813,6 +1885,27 @@ function aohShowRightPanel(feature, level) {
     });
   }
 
+  // ===== 宣战 / 入侵 / 轰炸 事件绑定 =====
+  const declareWarBtn = document.getElementById('rp-btn-declare-war');
+  if (declareWarBtn) {
+    declareWarBtn.addEventListener('click', () => {
+      const actions = document.getElementById('rp-war-actions');
+      if (actions) actions.style.display = (actions.style.display === 'flex') ? 'none' : 'flex';
+    });
+  }
+  const warInvadeBtn = document.getElementById('rp-war-invade');
+  if (warInvadeBtn) {
+    warInvadeBtn.addEventListener('click', () => {
+      aohStartInvasion(admin, name);
+    });
+  }
+  const warMissileBtn = document.getElementById('rp-war-missile');
+  if (warMissileBtn) {
+    warMissileBtn.addEventListener('click', () => {
+      aohMissileStrike(name);
+    });
+  }
+
   panel.classList.add('visible');
   document.getElementById('aoh-side-btns').classList.add('shifted');
 }
@@ -1846,8 +1939,10 @@ function enterSelecting() {
 
 function confirmSelection() {
   if (!selectedCountry) return;
+  const pickedCountry = selectedCountry; // 先保存选中结果（reset 会清空 selectedCountry）
+  aohResetGameState(); // 开新局前彻底清空上一局状态，避免串档
   gameState = 'playing';
-  confirmedCountry = { ...selectedCountry };
+  confirmedCountry = { ...pickedCountry };
   document.getElementById('back-btn').classList.remove('visible');
 
   earthAnim.from = earthGroup.position.x;
@@ -1925,7 +2020,12 @@ backBtnEl.addEventListener('click', () => {
 confirmBtnEl.addEventListener('click', confirmSelection);
 
 document.getElementById('btn-start').addEventListener('click', enterSelecting);
-document.getElementById('btn-settings').addEventListener('click', () => { alert('设置功能开发中...'); });
+document.getElementById('btn-continue').addEventListener('click', aohContinueGame);
+document.getElementById('btn-saves').addEventListener('click', aohOpenSavePopup);
+document.getElementById('saves-close').addEventListener('click', () => {
+  document.getElementById('saves-popup').classList.remove('visible');
+});
+document.getElementById('btn-settings').addEventListener('click', () => { aohNotify('设置功能开发中...'); });
 
 const TIME_SLOTS = ['00:00','03:00','06:00','09:00','12:00','15:00','18:00','21:00'];
 const SPEED_LEVELS = [0, 1, 2, 4, 8, 16];
@@ -1974,8 +2074,11 @@ function aohTickArmyMovement() {
       createArmyMarker(anim.toName, anim.troops, confirmedCountry?.enName || '');
       armyMarkers.remove(anim.sprite);
       armyAnimations.splice(i, 1);
-      armyCurve = null;
       if (armyAnimations.length === 0) clearArmyTrails();
+      // 入侵动画：军队到达后占领该省份
+      if (anim.invade) {
+        aohConquerProvince(anim.toName, anim.troops);
+      }
     }
   }
 }
@@ -2157,6 +2260,7 @@ window.addEventListener('resize', () => {
 document.addEventListener('keydown', (e) => {
   if (e.code === 'Escape' && gameState === 'selecting' && selectedCountry) selectRegion(null);
   if (e.code === 'Escape' && gameState === 'playing') {
+    if (invadeMode) { invadeMode = false; invadeTarget = null; aohNotify('已取消入侵'); return; }
     const techPopup = document.getElementById('tech-popup');
     const officerPopup = document.getElementById('officer-popup');
     const armyPopup = document.getElementById('army-popup');
@@ -2193,6 +2297,14 @@ document.getElementById('btn-resume').addEventListener('click', () => {
   document.getElementById('pause-overlay').classList.remove('visible');
 });
 
+document.getElementById('btn-save').addEventListener('click', () => {
+  aohSaveGame('auto');
+});
+
+document.getElementById('btn-open-saves').addEventListener('click', () => {
+  aohOpenSavePopup();
+});
+
 document.getElementById('btn-to-menu').addEventListener('click', () => {
   document.getElementById('pause-overlay').classList.remove('visible');
   selectRegion(null);
@@ -2201,7 +2313,15 @@ document.getElementById('btn-to-menu').addEventListener('click', () => {
   timeRunning = false;
   setTimeSpeed(0);
   aohHideUI();
+  aohResetGameState();
   countryFlags.hasAerospaceCompany = false;
+  // 清理选国预览残留
+  previewFlagEl.classList.remove('visible');
+  previewFlagEl.classList.add('sink');
+  previewGradientEl.classList.remove('visible');
+  previewGradientEl.classList.add('sink');
+  confirmBtnEl.classList.remove('visible');
+  document.getElementById('preview-placeholder').classList.remove('hidden');
   earthAnim.from = earthGroup.position.x;
   earthAnim.to = 0;
   earthAnim.t = 0;
@@ -2276,6 +2396,47 @@ document.addEventListener('pointerup', (e) => {
   if (dist <= 1.5) {
     const province = getProvinceAt(lon, lat);
     if (province) {
+      // 入侵模式：点击自己国家有驻军的省份作为出兵点
+      if (invadeMode && invadeTarget) {
+        const fromProv = province.properties.name;
+        const ownerOfProv = (window.__territoryOwner && window.__territoryOwner[fromProv]) || '';
+        if (ownerOfProv === confirmedCountry?.enName && armies[fromProv] > 0) {
+          const toProv = invadeTarget.province;
+          if (fromProv !== toProv) {
+            const troops = armies[fromProv] || 0;
+            delete armies[fromProv];
+            updateArmyMarker(fromProv, 0, '');
+            const path = findPath(fromProv, toProv);
+            // 若无法通过陆路寻路（如目标为无省份区划的国家），视为空降/远洋入侵，直接占领
+            if (!path || path.length < 2) {
+              armies[toProv] = troops;
+              createArmyMarker(toProv, troops, confirmedCountry?.enName || '');
+              aohConquerProvince(toProv, troops);
+              invadeMode = false;
+              invadeTarget = null;
+              aohHideRightPanel();
+              return;
+            }
+            clearArmyTrails();
+            drawArmyTrail(path);
+            const daysPerHop = path.length <= 3 ? 2 : 1;
+            animateArmyPath(path, troops, confirmedCountry?.enName || '', daysPerHop, true);
+            aohNotify('🚩 入侵军队已出发：' + fromProv + ' → ' + toProv + '（约' + ((path.length - 1) * daysPerHop) + '天）');
+            invadeMode = false;
+            invadeTarget = null;
+            aohHideRightPanel();
+            return;
+          } else {
+            invadeMode = false;
+            invadeTarget = null;
+            aohNotify('出兵点不能是目标省份本身');
+            return;
+          }
+        } else {
+          aohNotify('请点击你自己国家且有驻军的省份作为出兵点');
+          return;
+        }
+      }
       if (armyMoveMode && selectedArmy) {
         const fromProv = selectedArmy;
         const toProv = province.properties.name;
@@ -2389,13 +2550,17 @@ function aohUpdateResources() {
   document.getElementById('val-war').textContent = aohRes.war > 0 ? '战争(-' + aohRes.war + ')' : '和平';
   const missileEl = document.getElementById('val-missile');
   if (missileEl) missileEl.textContent = aohRes.missiles;
+  aohRenderArmyCounts(); // 军团数随资源变化实时刷新
 }
 
 function aohNotify(msg) {
+  const container = document.getElementById('aoh-notifications');
   const el = document.createElement('div');
   el.className = 'aoh-notif';
   el.textContent = msg;
-  document.getElementById('aoh-notifications').appendChild(el);
+  container.appendChild(el);
+  // 限制同时最多显示 4 条，新通知挤掉最旧的
+  while (container.children.length > 4) container.firstChild.remove();
   setTimeout(() => { el.classList.add('fade'); }, 3000);
   setTimeout(() => { el.remove(); }, 3500);
 }
@@ -2541,23 +2706,397 @@ function aohInitCountryData(countryName) {
   document.getElementById('bar-flag-img').style.display = document.getElementById('bar-flag-img').src ? 'block' : 'none';
   document.getElementById('bar-country-name').textContent = window.__chineseNames?.[countryName] || countryName;
 
-  document.getElementById('bp-army-count').textContent = '1';
-  document.getElementById('bp-army-max').textContent = Math.max(5, Math.round(aohRes.economy / 10));
-  document.getElementById('bp-officer-count').textContent = '1';
-  document.getElementById('bp-officer-max').textContent = Math.max(3, Math.round(aohRes.economy / 15));
+  // 军团/军官数由 aohRenderArmyCounts 实时统计（aohUpdateResources 已联动刷新）
 
   aohNotify(`${window.__chineseNames?.[countryName] || countryName} · 游戏开始`);
 
   refreshOfficerPool();
   initProvinceBuildings();
+  aohInitTerritoryOwnership(countryName);
 }
 
+// ===== 宣战 / 入侵 / 轰炸 系统 =====
+// 玩家领土颜色 = 玩家国家在 countryColors 映射中的原本国家色（选国后设置）
+// 占领别国领土后，被占领的省份会涂成玩家国家的原本颜色（即"变为自己国家的颜色"）
+window.__ownColor = null;
+// 省份归属记录：key=省份英文名，value=所属国家英文名
+window.__territoryOwner = {};
+
+// 初始化领土归属：遍历所有省份，归属=其 admin 国家。
+// 玩家国家保持原本颜色（不叠加任何额外颜色）
+function aohInitTerritoryOwnership(playerCountry) {
+  const geo = window.__provincesGeoJSON;
+  if (!geo) return;
+  for (const f of geo.features) {
+    const name = f.properties.name;
+    const admin = f.properties.admin || '';
+    if (name && admin) window.__territoryOwner[name] = admin;
+  }
+  window.__ownCountry = playerCountry;
+  // 玩家国家的原本颜色（用于占领他国领土时，把领土涂成自己国家的颜色）
+  window.__ownColor = (window.__countryColorMap || {})[playerCountry] || null;
+}
+
+// 重绘颜色球：从基础色备份恢复，再只把被玩家占领的外国省份涂成玩家国家原本的颜色。
+// 玩家自己的本土国家不做任何改动，保持原本颜色
+function aohRepaintTerritoryColors() {
+  const canvas = window.__colorCanvas;
+  const ctx = window.__colorCtx;
+  const base = window.__baseColorCanvas;
+  if (!canvas || !ctx || !base) return;
+  const toCanvas = window.__toCanvasFn;
+  const w = canvas.width, h = canvas.height;
+  const own = window.__ownCountry;
+  const ownColor = window.__ownColor;
+
+  // 1) 快速恢复基础国家色（drawImage 走 GPU，比重画 241 个国家快得多）
+  ctx.clearRect(0, 0, w, h);
+  ctx.drawImage(base, 0, 0);
+
+  if (!own || !ownColor) return;
+  // 2) 只覆盖被玩家占领的外国省份（归属==玩家，但原国家不是玩家）→ 涂成玩家国家原本颜色
+  const geo = window.__provincesGeoJSON;
+  if (geo) {
+    for (const f of geo.features) {
+      const pname = f.properties.name;
+      if (!pname) continue;
+      if (window.__territoryOwner[pname] === own && (f.properties.admin || '') !== own) {
+        fillFeature(f, ownColor, ctx, toCanvas, w, h);
+      }
+    }
+  }
+  // 3) 应用新纹理
+  if (window.__colorSphereMat && window.__colorSphereMat.map) {
+    window.__colorSphereMat.map.needsUpdate = true;
+  }
+}
+
+// 把单个 feature 填充为指定颜色
+function fillFeature(feature, color, ctx, toCanvas, w, h) {
+  const geom = feature.geometry;
+  if (!geom) return;
+  function drawRing(ring) {
+    if (ring.length < 2) return;
+    ctx.beginPath();
+    const [sx, sy] = toCanvas(ring[0][0], ring[0][1], w, h);
+    ctx.moveTo(sx, sy);
+    for (let i = 1; i < ring.length; i++) {
+      const [px, py] = toCanvas(ring[i][0], ring[i][1], w, h);
+      ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.fillStyle = color;
+  ctx.strokeStyle = 'transparent';
+  ctx.lineWidth = 0;
+  if (geom.type === 'Polygon') geom.coordinates.forEach(drawRing);
+  else if (geom.type === 'MultiPolygon') geom.coordinates.forEach(poly => poly.forEach(drawRing));
+}
+
+// 入侵模式状态
+let invadeMode = false;
+let invadeTarget = null; // { country, province }
+
+// 开始入侵：进入入侵模式，等待玩家选择自己国家的一个有驻军的省份作为出兵点
+function aohStartInvasion(targetCountry, targetProvince) {
+  if (gameState !== 'playing') return;
+  if (!confirmedCountry) return;
+  // 找玩家可用的出兵省份（有驻军的自己省份）
+  const ownProvs = [];
+  for (const pname in armies) {
+    if (armies[pname] > 0 && (window.__territoryOwner[pname] === confirmedCountry.enName)) {
+      ownProvs.push(pname);
+    }
+  }
+  if (ownProvs.length === 0) {
+    aohNotify('你没有可出兵的驻军省份，请先在自己国家省份征召军队');
+    return;
+  }
+  invadeMode = true;
+  invadeTarget = { country: targetCountry, province: targetProvince };
+  aohNotify(`⚔ 已向 ${targetCountry} 宣战！点击自己国家一个有驻军的省份作为出兵点，军队将入侵 ${targetProvince}`);
+  // 进入战争状态
+  aohRes.war = Math.max(1, (aohRes.war || 0) + 1);
+  aohUpdateResources();
+  // 关闭右侧面板，避免遮挡点击
+  aohHideRightPanel();
+}
+
+// 占领一个省份：变更归属、重绘颜色、更新军队
+function aohConquerProvince(provinceName, troops) {
+  const own = window.__ownCountry;
+  if (!own) return;
+  const prevOwner = window.__territoryOwner[provinceName];
+  if (prevOwner === own) {
+    aohNotify(provinceName + ' 已是你的领土');
+    return;
+  }
+  // 变更归属
+  window.__territoryOwner[provinceName] = own;
+  // 让军队旗帜显示玩家国旗（createArmyMarker 已在 aohTickArmyMovement 中创建，会使用玩家国旗）
+  // 重绘颜色
+  aohRepaintTerritoryColors();
+  // 增加战争经验/威望
+  aohRes.legacy = (aohRes.legacy || 0) + 2;
+  aohUpdateResources();
+  const cn = window.__chineseNames?.[provinceName] || provinceName;
+  aohNotify(`🏁 占领成功！${cn} 已成为你的领土`);
+  // 刷新右侧面板（若正在显示）
+  if (selectedCountry && selectedCountry.level === 'province' && selectedCountry.feature.properties.name === provinceName) {
+    aohShowRightPanel(selectedCountry.feature, selectedCountry.level);
+  }
+}
+
+// 导弹轰炸一个省份
+function aohMissileStrike(provinceName) {
+  if (gameState !== 'playing') return;
+  if (!aohRes || aohRes.missiles < 1) {
+    aohNotify('没有可用导弹！请先建造航天科技工厂生产导弹');
+    return;
+  }
+  aohRes.missiles -= 1;
+  aohRes.war = Math.max(1, (aohRes.war || 0) + 1);
+  const prov = aohGetProvinceEcon(provinceName);
+  // 削弱目标省份：经济-8~15，人口-5%~12%
+  const ecoDrop = 8 + Math.floor(Math.random() * 8);
+  const popDrop = Math.round(prov.population * (0.05 + Math.random() * 0.07));
+  prov.economy = Math.max(0, prov.economy - ecoDrop);
+  prov.population = Math.max(1000, prov.population - popDrop);
+  aohUpdateResources();
+  // 爆炸特效
+  aohExplosionEffect(provinceName);
+  const cn = window.__chineseNames?.[provinceName] || provinceName;
+  aohNotify(`💥 导弹轰炸 ${cn}！经济 -${ecoDrop}，人口 -${Math.round(popDrop / 1000)}K`);
+  // 有概率直接摧毁驻军
+  if (armies[provinceName] && Math.random() < 0.5) {
+    const destroyed = Math.round(armies[provinceName] * (0.3 + Math.random() * 0.5));
+    armies[provinceName] -= destroyed;
+    if (armies[provinceName] <= 0) delete armies[provinceName];
+    updateArmyMarker(provinceName, armies[provinceName] || 0, confirmedCountry?.enName || '');
+    aohNotify('轰炸摧毁敌方驻军 ' + destroyed + '人');
+  }
+}
+
+// 导弹轰炸的 3D 爆炸特效（在目标省份上方生成一个快速扩散消失的火球）
+function aohExplosionEffect(provinceName) {
+  const pos = getProvinceCenter(provinceName);
+  if (!pos) return;
+  const geo = new THREE.SphereGeometry(0.01, 16, 16);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffaa33, transparent: true, opacity: 1 });
+  const boom = new THREE.Mesh(geo, mat);
+  boom.position.copy(pos);
+  earthGroup.add(boom);
+  const start = performance.now();
+  const dur = 900;
+  function frame() {
+    const t = (performance.now() - start) / dur;
+    if (t >= 1) { earthGroup.remove(boom); return; }
+    const s = 0.005 + t * 0.04;
+    boom.scale.set(s, s, s);
+    mat.opacity = Math.max(0, 1 - t);
+    mat.color.setHSL(0.07 - t * 0.07, 1, 0.5 + t * 0.3);
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+// ===== 多存档系统 =====
+const SAVE_SLOTS = ['auto', '1', '2', '3'];
+const SAVE_KEY_PREFIX = 'aoh_save_';
+function slotName(slot) { return slot === 'auto' ? '自动' : slot; }
+
+// 保存当前游戏到指定槽位
+function aohSaveGame(slot) {
+  if (gameState !== 'playing' || !confirmedCountry) { aohNotify('当前没有进行中的游戏'); return false; }
+  try {
+    const data = {
+      version: 1,
+      slot,
+      savedAt: Date.now(),
+      playerCountry: confirmedCountry.enName || window.__ownCountry || '',
+      playerCountryCn: confirmedCountry.cnName || document.getElementById('bar-country-name').textContent || '',
+      timeYear, timeMonth, timeDay, timeSlotIndex, speedIndex,
+      aohRes: { ...aohRes },
+      armies: { ...armies },
+      provinceData: JSON.parse(JSON.stringify(provinceData)),
+      buildingQueue: { ...buildingQueue },
+      techProgress: { ...techProgress },
+      aohTechBonuses: { ...aohTechBonuses },
+      officerPool: JSON.parse(JSON.stringify(officerPool)),
+      countryFlags: { ...countryFlags },
+      territoryOwner: { ...(window.__territoryOwner || {}) },
+    };
+    localStorage.setItem(SAVE_KEY_PREFIX + slot, JSON.stringify(data));
+    aohNotify('💾 已保存到槽位「' + slotName(slot) + '」');
+    aohRenderSavePopup();
+    return true;
+  } catch (e) {
+    aohNotify('保存失败：' + e.message);
+    return false;
+  }
+}
+
+// 读取存档
+function aohLoadGame(slot) {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY_PREFIX + slot);
+    if (!raw) { aohNotify('槽位「' + slotName(slot) + '」为空'); return false; }
+    const data = JSON.parse(raw);
+    if (!data.playerCountry) { aohNotify('存档数据无效'); return false; }
+    aohResetGameState();
+    // 时间
+    timeYear = data.timeYear ?? 2026; timeMonth = data.timeMonth ?? 1; timeDay = data.timeDay ?? 1;
+    timeSlotIndex = data.timeSlotIndex ?? 0; speedIndex = data.speedIndex ?? 1;
+    // 资源
+    Object.assign(aohRes, data.aohRes || {});
+    // 集合
+    Object.keys(armies).forEach(k => delete armies[k]); Object.assign(armies, data.armies || {});
+    Object.keys(provinceData).forEach(k => delete provinceData[k]); Object.assign(provinceData, data.provinceData || {});
+    Object.keys(buildingQueue).forEach(k => delete buildingQueue[k]); Object.assign(buildingQueue, data.buildingQueue || {});
+    Object.keys(techProgress).forEach(k => delete techProgress[k]); Object.assign(techProgress, data.techProgress || {});
+    Object.keys(aohTechBonuses).forEach(k => delete aohTechBonuses[k]); Object.assign(aohTechBonuses, data.aohTechBonuses || {});
+    officerPool.length = 0; officerPool.push(...(data.officerPool || []));
+    countryFlags = { ...(data.countryFlags || {}) };
+    // 领土归属与玩家颜色
+    window.__ownCountry = data.playerCountry;
+    window.__territoryOwner = {};
+    Object.assign(window.__territoryOwner, data.territoryOwner || {});
+    window.__ownColor = (window.__countryColorMap || {})[data.playerCountry] || null;
+    // 国家显示
+    confirmedCountry = { cnName: data.playerCountryCn || data.playerCountry, enName: data.playerCountry, feature: null, level: 'country' };
+    document.getElementById('bar-flag-img').src = getFlagUrl(data.playerCountry);
+    document.getElementById('bar-country-name').textContent = data.playerCountryCn || data.playerCountry;
+    // 关闭所有遮罩
+    document.getElementById('menu-screen').classList.add('hidden');
+    document.getElementById('pause-overlay').classList.remove('visible');
+    document.getElementById('saves-popup').classList.remove('visible');
+    document.getElementById('back-btn').classList.remove('visible');
+    document.getElementById('confirm-btn').classList.remove('visible');
+    document.getElementById('preview-placeholder').classList.add('hidden');
+    // 渲染恢复
+    refreshAllArmyMarkers();
+    aohRepaintTerritoryColors();
+    aohRenderTech();
+    aohRenderOfficers();
+    aohRenderArmyCounts();
+    aohShowUI();
+    aohUpdateResources();
+    updateTimeDisplay();
+    setTimeSpeed(speedIndex);
+    timeRunning = speedIndex > 0;
+    gameState = 'playing';
+    earthStopped = true;
+    aohNotify('📂 已读取存档：' + (data.playerCountryCn || data.playerCountry));
+    return true;
+  } catch (e) {
+    aohNotify('读取失败：' + e.message);
+    return false;
+  }
+}
+
+// 彻底重置所有游戏状态（开新局 / 读档前 / 返回主菜单）
+function aohResetGameState() {
+  Object.keys(armies).forEach(k => delete armies[k]);
+  Object.keys(provinceData).forEach(k => delete provinceData[k]);
+  Object.keys(buildingQueue).forEach(k => delete buildingQueue[k]);
+  Object.keys(techProgress).forEach(k => delete techProgress[k]);
+  Object.keys(aohTechBonuses).forEach(k => delete aohTechBonuses[k]);
+  officerPool.length = 0;
+  countryFlags = {};
+  window.__territoryOwner = {};
+  window.__ownCountry = null;
+  window.__ownColor = null;
+  armyAnimations.length = 0;
+  while (armyMarkers.children.length > 0) armyMarkers.remove(armyMarkers.children[0]);
+  clearArmyTrails();
+  selectedArmy = null;
+  armyMoveMode = false;
+  invadeMode = false;
+  invadeTarget = null;
+  missileTick = 0;
+  constructionTick = 0;
+  confirmedCountry = null;
+  selectedCountry = null;
+  timeYear = 2026; timeMonth = 1; timeDay = 1; timeSlotIndex = 0;
+  timeRunning = false; timeAccum = 0;
+  aohRes.gold = 500; aohRes.economy = 50; aohRes.manpower = 1000; aohRes.diplomacy = 50;
+  aohRes.legacy = 0; aohRes.population = 100000; aohRes.growth = 1.2; aohRes.war = 0; aohRes.missiles = 0;
+}
+
+// 渲染存档弹窗列表
+function aohRenderSavePopup() {
+  const list = document.getElementById('saves-list');
+  if (!list) return;
+  let html = '';
+  for (const slot of SAVE_SLOTS) {
+    const raw = localStorage.getItem(SAVE_KEY_PREFIX + slot);
+    let metaHtml = '';
+    if (raw) {
+      try {
+        const d = JSON.parse(raw);
+        const t = new Date(d.savedAt);
+        metaHtml = `<div class="save-meta">国家：${d.playerCountryCn || d.playerCountry} ｜ 游戏时间：${d.timeYear}年${d.timeMonth}月${d.timeDay}日 ｜ 保存于 ${t.getMonth() + 1}月${t.getDate()}日 ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}</div>`;
+      } catch (e) {
+        metaHtml = '<div class="save-meta" style="color:#f88">存档数据损坏</div>';
+      }
+    } else {
+      metaHtml = '<div class="save-meta" style="color:#556">空</div>';
+    }
+    html += `
+      <div class="save-row">
+        <div class="save-name">槽位${slotName(slot)}</div>
+        ${metaHtml}
+        <div class="save-actions">
+          <button class="save-btn" data-save="${slot}" data-action="save">💾 保存</button>
+          ${raw ? `<button class="save-btn load" data-save="${slot}" data-action="load">📂 读取</button>` : ''}
+          ${raw ? `<button class="save-btn del" data-save="${slot}" data-action="del">🗑 删除</button>` : ''}
+        </div>
+      </div>`;
+  }
+  list.innerHTML = html;
+  list.querySelectorAll('.save-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const slot = btn.dataset.save;
+      const action = btn.dataset.action;
+      if (action === 'save') aohSaveGame(slot);
+      else if (action === 'load') aohLoadGame(slot);
+      else if (action === 'del') { localStorage.removeItem(SAVE_KEY_PREFIX + slot); aohNotify('已删除存档'); aohRenderSavePopup(); }
+    });
+  });
+}
+
+function aohOpenSavePopup() {
+  aohRenderSavePopup();
+  document.getElementById('saves-popup').classList.add('visible');
+}
+
+// 继续游戏：读取最近保存的存档
+function aohContinueGame() {
+  let bestKey = null, bestTime = -1;
+  for (const slot of SAVE_SLOTS) {
+    const raw = localStorage.getItem(SAVE_KEY_PREFIX + slot);
+    if (!raw) continue;
+    try {
+      const d = JSON.parse(raw);
+      if (d.savedAt && d.savedAt > bestTime) { bestTime = d.savedAt; bestKey = slot; }
+    } catch (e) { /* 忽略损坏档 */ }
+  }
+  if (bestKey) aohLoadGame(bestKey);
+  else aohNotify('没有可继续的存档');
+}
+
+let economyDayCounter = 0;
 function aohTickEconomy() {
-  aohRes.gold += (aohRes.economy - 30) * 1.5;
+  economyDayCounter++;
+  if (economyDayCounter < 8) return; // 每日结算一次
+  economyDayCounter = 0;
+  // 平衡后的每日收入：经济50 → 每天 +8 金；经济100 → 每天 +28 金（征兵需20金，攒钱更有策略性）
+  aohRes.gold += (aohRes.economy - 30) * 0.4;
   if (aohRes.gold < 0) aohRes.gold = 0;
-  aohRes.manpower += Math.round(aohRes.economy * 0.5);
-  if (aohRes.economy > 60) aohRes.legacy += 0.01;
-  else if (aohRes.economy < 40) aohRes.legacy = Math.max(0, aohRes.legacy - 0.01);
+  aohRes.manpower += Math.round(aohRes.economy * 0.15);
+  if (aohRes.economy > 60) aohRes.legacy += 0.08;
+  else if (aohRes.economy < 40) aohRes.legacy = Math.max(0, aohRes.legacy - 0.08);
   aohUpdateResources();
 }
 
@@ -2913,8 +3452,10 @@ function aohTickTech() {
         aohNotify(`科技完成: ${tech.name}`);
         aohUpdateResources();
         delete aohTechBonuses[tech.id];
+        // 若还有其他科技正在研究，则保持按钮高亮
+        const stillResearching = techDefs.some(t => techProgress[t.id] === 'researching');
         const techBtn = document.getElementById('sb-tech');
-        if (techBtn) techBtn.classList.remove('researching');
+        if (techBtn) techBtn.classList.toggle('researching', stillResearching);
       }
     }
   }
@@ -3005,7 +3546,9 @@ function aohRenderOfficers() {
 }
 
 function aohRenderArmyCounts() {
-  const armyCount = Math.max(1, Math.floor(aohRes.manpower / 5000));
+  // 军团数 = 实际有驻军的省份数（真实统计，随征兵/解散/移动/占领实时变化）
+  let armyCount = 0;
+  for (const prov in armies) if (armies[prov] > 0) armyCount++;
   const armyMax = Math.max(5, Math.round(aohRes.economy / 10));
   document.getElementById('bp-army-count').textContent = Math.min(armyCount, armyMax);
   document.getElementById('bp-army-max').textContent = armyMax;

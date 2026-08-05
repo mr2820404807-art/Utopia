@@ -1,0 +1,18 @@
+# 开发临时脚本
+_check*.js
+_merge*.js
+_module_check.mjs
+
+# 备份文件
+index_backup*.html
+
+# 数据处理临时文件
+ne-temp/
+*.geojson
+diff_output.txt
+result.txt
+parse_geojson.py
+
+# 系统文件
+.DS_Store
+Thumbs.db
