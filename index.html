@@ -155,18 +155,6 @@ canvas{display:block}
 .aoh-popup .tech-card .tech-progress-bar{height:100%;background:linear-gradient(90deg,#ffd877,#ffaa44);border-radius:2px;transition:width .3s}
 
 /* ===== 移动端横屏适配 ===== */
-#rotate-hint{position:fixed;inset:0;z-index:9999;background:#0a0a12;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px}
-#rotate-hint .rh-icon{font-size:64px;animation:rhRotate 2s ease-in-out infinite}
-#rotate-hint .rh-text{color:#99bbdd;font-size:16px;letter-spacing:3px}
-@keyframes rhRotate{0%,100%{transform:rotate(0deg)}50%{transform:rotate(90deg)}}
-
-@media (orientation: portrait){
-  #rotate-hint{display:flex}
-}
-@media (orientation: landscape){
-  #rotate-hint{display:none}
-}
-
 /* 手机/平板横屏：缩小关键 UI，适配矮宽屏幕 */
 @media (orientation: landscape) and (max-width: 1100px){
   #menu-screen .menu-title{font-size:30px}
@@ -225,12 +213,6 @@ body{overflow:hidden}
 </style>
 </head>
 <body>
-
-<div id="rotate-hint">
-  <div class="rh-icon">📱</div>
-  <div class="rh-text">请横屏观看以获得最佳体验</div>
-  <div class="rh-text" style="font-size:12px;opacity:.6">请旋转你的设备</div>
-</div>
 
 <div id="menu-screen">
   <div class="menu-title">乌 托 邦</div>
