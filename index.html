@@ -4,6 +4,23 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>乌托邦</title>
+<script>
+// file:// 直接打开的友好提示（此脚本为传统内联脚本，模块被浏览器拦截时也能执行）
+(function () {
+  if (location.protocol !== 'file:') return;
+  var t = setInterval(function () {
+    // 模块若已正常运行会移除 #loading；若 2.5 秒后仍在初始文案，判定模块被拦截
+    var el = document.getElementById('loading');
+    if (!el || el.textContent.indexOf('加载高清贴图中') !== 0) { clearInterval(t); return; }
+    clearInterval(t);
+    var tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;left:50%;top:62%;transform:translateX(-50%);z-index:9999;background:rgba(60,15,15,.95);border:1px solid rgba(255,120,100,.5);color:#ffd8d0;padding:14px 22px;border-radius:10px;font:13px/1.8 "Microsoft YaHei",sans-serif;text-align:center;max-width:86vw';
+    tip.innerHTML = '检测到你正以本地文件方式打开。<br>浏览器安全策略禁止 file:// 页面加载游戏模块，无法直接运行。<br>请双击项目目录下的 <b style="color:#ffd877">启动游戏.bat</b>，或通过 http:// 地址访问。';
+    (document.body || document.documentElement).appendChild(tip);
+  }, 500);
+  setTimeout(function () { clearInterval(t); }, 10000);
+})();
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0a0a12;overflow:hidden;font-family:'Segoe UI','Microsoft YaHei',sans-serif;user-select:none;-webkit-user-select:none;cursor:grab}
