@@ -1,6 +1,6 @@
 // ===== 科技树：4 方向 26 项，前置解锁，效果进入 playerMods =====
 // 乌托邦 · 一期改造
-import { aohRes, techProgress, aohTechBonuses, playerMods, playerPolicy, onDay, UI } from './state.js';
+import { aohRes, techProgress, aohTechBonuses, playerMods, playerPolicy, playerGoldenAge, onDay, UI } from './state.js';
 
 // 科研政策效果（参照 GV_Budget RESEARCH_LEVEL：低速省费/高速费）
 const RESEARCH_SPEED = [-0.5, 0, 0.25];
@@ -95,7 +95,7 @@ export function reapplyAllTechs() {
 
 function dailyTech() {
   let finished = false;
-  const policySpeed = 1 + RESEARCH_SPEED[playerPolicy.research + 1];
+  const policySpeed = (1 + RESEARCH_SPEED[playerPolicy.research + 1]) * (playerGoldenAge.kind === 'sci' ? 1.3 : 1);
   for (const t of techDefs) {
     if (techProgress[t.id] !== 'researching') continue;
     const b = aohTechBonuses[t.id] || (aohTechBonuses[t.id] = { days: 0 });

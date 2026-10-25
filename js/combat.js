@@ -1,9 +1,9 @@
 // ===== 战斗系统：多日战斗解算、邻接图（陆+海）、占领与撤退 =====
 // 乌托邦 · 一期改造
-import { lonLatDist, nameHash, coastalCountries } from './data.js';
+import { lonLatDist, nameHash, coastalCountries, GOV_TYPES } from './data.js';
 import {
   armies, battles, nations, wars, provinceData, provinceAdj, seaAdj, provinceCenter,
-  officerPool, playerMods, sieges, logEvent, clearObj, onDay, UI, registerSave,
+  officerPool, playerMods, sieges, logEvent, playerGoldenAge, clearObj, onDay, UI, registerSave,
 } from './state.js';
 import { transferProvince, endBattle } from './nations.js';
 import { isAtWar, warEvent } from './diplomacy.js';
@@ -355,8 +355,9 @@ function dailyBattles() {
     const isPlayerDef = defOwner === window.__ownCountry;
     const provDef = provinceData[prov];
 
+    const gaMil = playerGoldenAge.kind === 'mil' ? 0.15 : 0;
     const atkPower = b.attacker.troops
-      * (1 + atkNat.milTech * 0.05 + officerBonus(b.attacker.officerId, 'attack') + (isPlayerAtk ? playerMods.atk : 0))
+      * (1 + atkNat.milTech * 0.05 + officerBonus(b.attacker.officerId, 'attack') + (isPlayerAtk ? playerMods.atk + (window.__playerGov ? (GOV_TYPES[window.__playerGov] || GOV_TYPES.repub).atkMod : 0) + gaMil : 0))
       * (0.85 + Math.random() * 0.3);
     const fortDef = (provDef ? (provDef.fortLv || 0) * 0.10 : 0);
     const defPower = def.troops

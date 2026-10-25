@@ -1,6 +1,6 @@
 // ===== 国家模型：为世界上每个国家建立可运作的状态 =====
 // 乌托邦 · 一期改造
-import { gdpMap, popMap, nameHash, dataKey } from './data.js';
+import { gdpMap, popMap, nameHash, dataKey, GOV_KEYS } from './data.js';
 import {
   aohRes, armies, nations, wars, battles, relations, alliances, gameCtx, relKey, provinceData, provinceUnrest, logEvent,
   clearObj, UI, registerSave,
@@ -91,6 +91,7 @@ export function initNations(playerCountry) {
       milTech: greatPowers.has(name) ? 3 : (h % 3),
       ecoTech: greatPowers.has(name) ? 3 : (h % 3),
       personality: PERSONALITIES[h % 3],
+      gov: GOV_KEYS[h % GOV_KEYS.length],
       aggression: 0.25 + (h % 70) / 100,
       warSupport: 100,
       alive: true,

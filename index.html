@@ -373,6 +373,7 @@ body.theme-parchment #time-text, body.theme-parchment .bar-country { color: #f0d
     <button class="bp-btn" id="bp-reorganize" title="预算政策 - 税收/科研/军费与贷款">预算</button>
     <button class="bp-btn" id="bp-transport" title="法律 - 以威望颁布国策">法律</button>
     <button class="bp-btn" id="bp-mute" title="音效开关">🔊</button>
+    <button class="bp-btn" id="bp-gov" title="政体 - 更换国家体制">政体</button>
   </div>
   <div class="bp-sep"></div>
   <div class="bp-section">
@@ -421,6 +422,13 @@ body.theme-parchment #time-text, body.theme-parchment .bar-country { color: #f0d
   <div class="aoh-popup">
     <div class="popup-title">外交关系<button class="popup-close" data-close="diplomacy-popup">✕</button></div>
     <div class="diplo-grid" id="diplo-grid"></div>
+  </div>
+</div>
+
+<div class="aoh-popup-overlay" id="gov-popup">
+  <div class="aoh-popup" style="min-width:460px">
+    <div class="popup-title">🏛️ 政体<button class="popup-close" data-close="gov-popup">✕</button></div>
+    <div id="gov-body" style="max-height:60vh;overflow-y:auto"></div>
   </div>
 </div>
 
@@ -510,12 +518,12 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // ===== 游戏系统模块（一期改造：文明时代3式玩法）=====
-import { nameHash, coastalCountries, gdpMap, popMap, dataKey } from './js/data.js';
+import { nameHash, coastalCountries, gdpMap, popMap, dataKey, GOV_TYPES, GOV_KEYS } from './js/data.js';
 import {
   UI, aohRes, playerMods, armies, provinceData, buildingQueue, techProgress, aohTechBonuses,
   officerPool, countryFlags, nations, wars, battles, justifying, gameCtx,
   provinceAdj, seaAdj, provinceCenter, chronicle, logEvent, resetAllState, runTicks, runDay, saveAllSections, loadAllSections, getRelation, addRelation, alliances,
-  playerPolicy, playerLoans, provinceUnrest, playerLaws,
+  playerPolicy, playerLoans, provinceUnrest, playerLaws, playerGoldenAge, spyNetwork, spyIntel,
 } from './js/state.js';
 import { initNations, transferProvince, playerNation, nationPower } from './js/nations.js';
 import { buildAdjacency, findPathDays, onArmyArrive } from './js/combat.js';
@@ -528,7 +536,7 @@ import {
   techById, techUnlocked, reapplyAllTechs,
 } from './js/tech.js';
 import { setMapMode, repaintMap, currentMapMode, MAP_MODES } from './js/mapmodes.js';
-import { loanOffer, takeLoan } from './js/economy.js';
+import { loanOffer, takeLoan, hireMercenaries, sendSpy } from './js/economy.js';
 import './js/economy.js';
 import './js/ai.js';
 import './js/victory.js';
@@ -2651,6 +2659,7 @@ function aohShowRightPanel(feature, level) {
     <div class="rp-section">
       <div class="rp-section-title">军事</div>
       <button id="rp-btn-recruit" style="width:100%;padding:8px;border:1px solid rgba(100,180,255,.4);border-radius:6px;background:rgba(20,40,70,.4);color:#bbddee;font-size:13px;cursor:pointer;transition:all .2s;">征召 ${Math.round(500 + playerMods.recruit * 500)} 兵（${rcGold}金 + ${rcMp}人力）</button>
+      <button id="rp-btn-merc" style="width:100%;padding:7px;margin-top:6px;border:1px solid rgba(220,170,80,.4);border-radius:6px;background:rgba(70,50,15,.4);color:#ffd897;font-size:12px;cursor:pointer;transition:all .2s;">💰 雇佣兵 1000 人（60金·即刻入编·不耗人力）</button>
     </div>
   ` : '';
 
@@ -2687,7 +2696,7 @@ function aohShowRightPanel(feature, level) {
   const unrest = provinceUnrest[name];
   const unrestLine = unrest > 0 ? `<div class="rp-stat"><span class="rp-label">动荡度</span><span class="rp-value" style="color:${unrest > 70 ? '#ff8877' : unrest > 40 ? '#ffd877' : '#9fe0b8'}">${Math.round(unrest)} / 100${unrest >= 100 ? ' · 起义临界！' : ''}</span></div>` : '';
   const ownerNat = nations[owner];
-  const govLine = ownerNat ? `<div class="rp-stat"><span class="rp-label">政权</span><span class="rp-value">${ownerNat.greatPower ? '★ 列强' : ownerNat.personality === 'expansionist' ? '扩张主义' : ownerNat.personality === 'defensive' ? '守成主义' : '均衡发展'}${ownerNat.overlord ? ' · 傀儡' : ''}</span></div>` : '';
+  const govLine = ownerNat ? `<div class="rp-stat"><span class="rp-label">政权</span><span class="rp-value">${(GOV_TYPES[ownerNat.gov] || GOV_TYPES.repub).name} · ${ownerNat.greatPower ? '★列强 ' : ''}${ownerNat.personality === 'expansionist' ? '扩张' : ownerNat.personality === 'defensive' ? '守成' : '均衡'}${ownerNat.overlord ? ' · 傀儡' : ''}</span></div>` : '';
 
   panel.innerHTML = `
     <div class="rp-header">
@@ -2742,6 +2751,9 @@ function aohShowRightPanel(feature, level) {
       aohNotify('征召成功！' + cnProv + ' 驻军 ' + armies[name].troops + ' 人');
     });
   }
+
+  const mercBtn = document.getElementById('rp-btn-merc');
+  if (mercBtn) mercBtn.addEventListener('click', () => { hireMercenaries(name, 1); });
 
   // ===== 宣战 / 借口 / 入侵 / 轰炸 事件绑定 =====
   const justifyBtn = document.getElementById('rp-btn-justify');
@@ -3577,6 +3589,11 @@ document.getElementById('bp-transport').addEventListener('click', () => {
   document.getElementById('laws-popup').classList.add('visible');
   renderLawsPanel();
 });
+document.getElementById('bp-gov').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  document.getElementById('gov-popup').classList.add('visible');
+  renderGovPanel();
+});
 document.getElementById('bp-mute').addEventListener('click', (e) => {
   const m = Sfx.toggleMute();
   e.target.textContent = m ? '🔇' : '🔊';
@@ -3655,6 +3672,7 @@ function aohInitCountryData(countryName) {
   aohInitTerritoryOwnership(countryName);
   buildAdjacency();          // 陆路 + 海路邻接图（分帧构建，不卡动画）
   initNations(countryName);  // 全国家模型（含玩家初始驻军、AI、关系、列强）
+  if (!window.__playerGov) window.__playerGov = (nations[countryName] && nations[countryName].gov) || 'repub';
   refreshAllArmyMarkers();   // 显示世界各国驻军（分帧）
   aohUpdateResources();      // 刷新军团数等顶栏显示
   aohNotify('🌍 ' + (window.__chineseNames?.[countryName] || countryName) + ' · 世界已苏醒，列强环伺');
@@ -3866,6 +3884,7 @@ function aohSaveGame(slot) {
       countryFlags: { ...countryFlags },
       territoryOwner: { ...(window.__territoryOwner || {}) },
       inFlights,
+      playerGov: window.__playerGov || 'repub',
       sections: saveAllSections(),
     };
     localStorage.setItem(SAVE_KEY_PREFIX + slot, JSON.stringify(data));
@@ -3956,6 +3975,7 @@ function aohLoadGame(slot) {
       // 3) 重建邻接表（resetAllState 已清空，读档路径必须重建，否则无法行军/AI瘫痪）
       buildAdjacency();
     }
+    window.__playerGov = data.playerGov || 'repub';
     reapplyAllTechs();
     applyLaws && applyLaws();
 
@@ -4533,6 +4553,7 @@ function aohRenderDiplomacy() {
         ${status || `<button data-act="improve" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(100,180,255,.3);border-radius:4px;background:rgba(20,40,70,.4);color:#bbd;cursor:pointer">改善20💰</button>
         <button data-act="ally" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(120,200,255,.3);border-radius:4px;background:rgba(20,50,80,.4);color:#9cd;cursor:pointer">结盟</button>`}
         ${isVassal ? `<button data-act="appease" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(180,140,255,.35);border-radius:4px;background:rgba(50,30,80,.4);color:#cbalf;cursor:pointer">安抚30💰</button>` : ''}
+        ${!atWar && !spyNetwork[n.name] ? `<button data-act="spy" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(140,180,140,.35);border-radius:4px;background:rgba(30,50,35,.4);color:#a8ccaa;cursor:pointer">${spyIntel[n.name] ? '🕵️刷新' : '🕵️谍报40💰'}</button>` : (spyNetwork[n.name] ? '<span style="font-size:10px;color:#8ca">谍报中' + spyNetwork[n.name].daysLeft + '天</span>' : '')}
         ${!atWar ? `<button data-act="war" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(255,90,70,.3);border-radius:4px;background:rgba(80,20,15,.35);color:#f98;cursor:pointer">宣战</button>` : ''}
       </div>`;
     grid.appendChild(row);
@@ -4547,6 +4568,9 @@ function aohRenderDiplomacy() {
         addRelation(me, target, 12);
         aohNotify(`💌 与 ${UI.cn(target)} 的关系改善了`);
         aohUpdateResources();
+        aohRenderDiplomacy();
+      } else if (act === 'spy') {
+        sendSpy(target);
         aohRenderDiplomacy();
       } else if (act === 'appease') {
         const vn = nations[target];
@@ -4571,6 +4595,35 @@ function aohRenderDiplomacy() {
         } else aohNotify(r.msg);
         aohRenderDiplomacy();
       }
+    });
+  });
+}
+
+// ===== 政体面板 =====
+function currentGovKey() { return window.__playerGov || 'repub'; }
+function renderGovPanel() {
+  const body = document.getElementById('gov-body');
+  if (!body) return;
+  const cur = currentGovKey();
+  let html = '<div style="font-size:12px;color:#889;margin-bottom:10px">当前政体：<b style="color:#ffd877">' + GOV_TYPES[cur].icon + ' ' + GOV_TYPES[cur].name + '</b> · 更换消耗 50 威望</div>';
+  for (const k of GOV_KEYS) {
+    const g = GOV_TYPES[k];
+    const on = k === cur;
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 10px;margin:5px 0;border:1px solid ' + (on ? 'rgba(255,216,119,.5)' : 'rgba(80,120,200,.25)') + ';border-radius:8px;background:' + (on ? 'rgba(70,55,15,.4)' : 'rgba(20,28,50,.4)') + '">' +
+      '<div><div style="font-size:13px;color:#dde">' + g.icon + ' ' + g.name + (on ? ' <span style="color:#ffd877">✓</span>' : '') + '</div>' +
+      '<div style="font-size:11px;color:#889">' + g.desc + '</div></div>' +
+      (!on ? '<button data-gov="' + k + '" style="padding:6px 14px;font-size:12px;border:1px solid rgba(255,216,119,.4);border-radius:6px;background:rgba(70,55,15,.35);color:#ffd897;cursor:pointer">50威望</button>' : '') +
+      '</div>';
+  }
+  body.innerHTML = html;
+  body.querySelectorAll('button[data-gov]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (aohRes.legacy < 50) { aohNotify('威望不足（需要50）'); return; }
+      aohRes.legacy -= 50;
+      window.__playerGov = btn.dataset.gov;
+      aohUpdateResources();
+      aohNotify('🏛️ 政体更迭：' + GOV_TYPES[btn.dataset.gov].name + '——' + GOV_TYPES[btn.dataset.gov].desc);
+      renderGovPanel();
     });
   });
 }
@@ -4615,6 +4668,21 @@ function renderBudgetPanel() {
       </div>
     </div>`;
   }
+  const ga = playerGoldenAge;
+  let gaHtml = '';
+  if (ga.kind) {
+    const gaName = ga.kind === 'civ' ? '文治之世（收入+25%）' : ga.kind === 'mil' ? '武功之世（攻防+15%）' : '科研之世（研究+30%）';
+    gaHtml = `<div class="rp-divider"></div><div style="font-size:13px;color:#ffd877;margin:8px 0 6px">🌟 黄金时代进行中</div>
+      <div style="font-size:12px;color:#ccb98a;margin-bottom:6px">${gaName} · 剩余 ${Math.round(ga.daysLeft)} 天</div>`;
+  } else {
+    gaHtml = `<div class="rp-divider"></div><div style="font-size:13px;color:#dde;margin:8px 0 6px">🌟 黄金时代 <span style="font-size:11px;color:#889">（60威望 · 3年 · 三择一）</span></div>
+      <div style="display:flex;gap:6px">
+        <button data-ga="civ" style="flex:1;padding:8px 4px;font-size:11px;border:1px solid rgba(255,216,119,.4);border-radius:6px;background:rgba(70,55,15,.4);color:#ffd897;cursor:pointer">文治<br>收入+25%</button>
+        <button data-ga="mil" style="flex:1;padding:8px 4px;font-size:11px;border:1px solid rgba(255,150,110,.4);border-radius:6px;background:rgba(70,35,15,.4);color:#ffb899;cursor:pointer">武功<br>攻防+15%</button>
+        <button data-ga="sci" style="flex:1;padding:8px 4px;font-size:11px;border:1px solid rgba(140,200,255,.4);border-radius:6px;background:rgba(25,45,70,.4);color:#a8d4ff;cursor:pointer">科研<br>研究+30%</button>
+      </div>`;
+  }
+  html += gaHtml;
   html += `<div class="rp-divider"></div><div style="font-size:13px;color:#dde;margin:8px 0 6px">🏦 贷款 <span style="font-size:11px;color:#889">（上限5笔 · 两年分期 · 总息15%）</span></div>
     <div style="font-size:12px;color:#99a;margin-bottom:8px">当前借款：${playerLoans.length} 笔，剩余债务 ${Math.round(playerLoans.reduce((s, l) => s + l.dailyPay * l.daysLeft, 0))} 金</div>
     <button id="bp-loan" style="width:100%;padding:9px;border:1px solid rgba(120,200,140,.4);border-radius:6px;background:rgba(20,50,35,.4);color:#9fe0b8;font-size:13px;cursor:pointer">申请贷款 ${loanOffer()} 金</button>`;
@@ -4628,6 +4696,19 @@ function renderBudgetPanel() {
   });
   const loanBtn = body.querySelector('#bp-loan');
   if (loanBtn) loanBtn.addEventListener('click', () => { takeLoan(); renderBudgetPanel(); });
+  body.querySelectorAll('button[data-ga]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (playerGoldenAge.kind) return;
+      if (aohRes.legacy < 60) { aohNotify('威望不足（需要60）'); return; }
+      aohRes.legacy -= 60;
+      playerGoldenAge.kind = btn.dataset.ga;
+      playerGoldenAge.daysLeft = 1095;
+      aohUpdateResources();
+      const nm = btn.dataset.ga === 'civ' ? '文治之世' : btn.dataset.ga === 'mil' ? '武功之世' : '科研之世';
+      aohNotify('🌟 黄金时代开启：' + nm + '（3年）');
+      renderBudgetPanel();
+    });
+  });
 }
 
 // ===== 法律面板（参照文明时代3 laws：以威望颁布国策）=====

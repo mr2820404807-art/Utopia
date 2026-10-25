@@ -83,6 +83,11 @@ export const gameCtx = {          // 一局的全局参数
   aiWarLimit: 5,
 };
 
+// ---- 二期系统：雇佣兵/间谍/黄金时代/政体 ----
+export const playerGoldenAge = { kind: null, daysLeft: 0 };   // 'civ'|'mil'|'sci'
+export const spyNetwork = {};    // target -> { daysLeft }
+export const spyIntel = {};      // target -> { gold, troops, wars, warSupport, at }
+
 // ---- 世界编年史 ----
 export const chronicle = [];   // {y, m, d, text, type}
 export function logEvent(text, type = 'world') {
@@ -139,6 +144,8 @@ export function resetAllState() {
   Object.keys(playerMods).forEach(k => playerMods[k] = 0);
   playerPolicy.tax = 0; playerPolicy.research = 0; playerPolicy.military = 0;
   clearArray(playerLoans); clearObj(provinceUnrest); clearObj(sieges); clearObj(playerLaws);
+  playerGoldenAge.kind = null; playerGoldenAge.daysLeft = 0;
+  clearObj(spyNetwork); clearObj(spyIntel);
   clearObj(armies); clearObj(provinceData); clearObj(buildingQueue);
   clearObj(techProgress); clearObj(aohTechBonuses);
   clearArray(officerPool); clearObj(countryFlags);
@@ -157,6 +164,9 @@ registerSave('policies',
     unrest: { ...provinceUnrest },
     laws: { ...playerLaws },
     chronicle: chronicle.slice(-200),
+    goldenAge: { kind: playerGoldenAge.kind, daysLeft: playerGoldenAge.daysLeft },
+    spyNetwork: { ...spyNetwork },
+    spyIntel: { ...spyIntel },
   }),
   (data) => {
     playerPolicy.tax = 0; playerPolicy.research = 0; playerPolicy.military = 0;
@@ -168,6 +178,10 @@ registerSave('policies',
     Object.assign(playerLaws, data.laws || {});
     chronicle.length = 0;
     (data.chronicle || []).forEach(e => chronicle.push(e));
+    playerGoldenAge.kind = (data.goldenAge || {}).kind || null;
+    playerGoldenAge.daysLeft = (data.goldenAge || {}).daysLeft || 0;
+    Object.assign(spyNetwork, data.spyNetwork || {});
+    Object.assign(spyIntel, data.spyIntel || {});
     // 围城状态不存档：读档后围城重置（进攻方部队已在目标省驻扎模型外，直接按占领处理）
   });
 

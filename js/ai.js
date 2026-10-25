@@ -1,6 +1,6 @@
 // ===== AI 决策：招募、建设、进攻、防御、扩张宣战 =====
 // 乌托邦 · 一期改造
-import { nameHash } from './data.js';
+import { nameHash, GOV_TYPES } from './data.js';
 import {
   armies, nations, wars, provinceData, provinceAdj, gameCtx, getRelation, hasTruce,
   onDay, UI,
@@ -152,7 +152,8 @@ function aiConsiderWar(n, today) {
   const aiWars = wars.filter(w => !w.attackers.includes(window.__ownCountry) && !w.defenders.includes(window.__ownCountry)).length;
   if (aiWars >= gameCtx.aiWarLimit) return;
   if (gameCtx.worldTension > 50) return;
-  if (Math.random() > n.aggression * 0.035) return; // 开战概率调低（原0.10）
+  const govAggr = 1 + ((GOV_TYPES[n.gov] || GOV_TYPES.repub).aggr || 0);
+  if (Math.random() > n.aggression * 0.035 * govAggr) return; // 开战概率调低（原0.10），政体倾向修正
   const neighbors = neighborCountries(n).filter(c => {
     const cn = nations[c];
     // 不主动攻打列强（含玩家所在列强），只欺负弱邻；目标已在别的战争中也不打

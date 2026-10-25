@@ -172,3 +172,14 @@ export function lonLatDist(a, b) {
   const dx2 = Math.min(dx, 360 - dx);
   return Math.sqrt(dx2 * dx2 + dy * dy);
 }
+
+
+// ===== 政体（参照文明时代3 Governments：每种政体带国策修正）=====
+export const GOV_TYPES = {
+  demo:     { name: '民主制',   icon: '🗳️', incomeMod: 0.10, atkMod: -0.03, mpMod: 0.0,  diploMod: 0.15, wsDrain: 0.15, aggr: -0.2, desc: '收入+10%，外交点增长，厌战快，攻势-3%' },
+  repub:    { name: '共和制',   icon: '⚖️', incomeMod: 0.04, atkMod: 0.0,   mpMod: 0.05, diploMod: 0.05, wsDrain: 0.0,  aggr: 0.0,  desc: '均衡发展：收入+4%，人力+5%' },
+  monar:    { name: '君主制',   icon: '👑', incomeMod: 0.0,  atkMod: 0.04,  mpMod: 0.0,  diploMod: 0.0,  wsDrain: -0.1, aggr: 0.1, desc: '攻势+4%，厌战慢（传统王朝战争）' },
+  military: { name: '军政府',   icon: '🎖️', incomeMod: -0.06, atkMod: 0.12, mpMod: 0.15, diploMod: -0.05, wsDrain: -0.2, aggr: 0.4, desc: '攻势+12%，人力+15%，收入-6%，黩武' },
+  oneparty: { name: '一党制',   icon: '🚩', incomeMod: 0.06, atkMod: 0.06,  mpMod: 0.08, diploMod: 0.0,  wsDrain: -0.15, aggr: 0.2, desc: '收入+6%，攻势+6%，人力+8%，动员力强' },
+};
+export const GOV_KEYS = Object.keys(GOV_TYPES);

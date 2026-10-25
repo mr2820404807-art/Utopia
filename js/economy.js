@@ -3,9 +3,11 @@
 import {
   aohRes, armies, nations, provinceData, playerMods, gameCtx, logEvent,
   playerPolicy, playerLoans, provinceUnrest, sieges, playerLaws,
+  playerGoldenAge, spyNetwork, spyIntel, addRelation,
   onDay, UI,
 } from './state.js';
 import { warsOf } from './diplomacy.js';
+import { GOV_TYPES } from './data.js';
 import { transferProvince } from './nations.js';
 
 // 战争支持度参数（参照文明时代3厌战值：进攻方掉得快，防守方掉得慢，和平恢复）
@@ -92,8 +94,83 @@ export function nationUpkeep(n) {
   return troops * 0.0008;
 }
 
+// 玩家政体修正（读 js/data.js GOV_TYPES；无政体视为共和）
+function govOf(name) {
+  const n = nations[name];
+  const key = (name === window.__ownCountry && window.__playerGov) ? window.__playerGov : (n && n.gov) || 'repub';
+  return GOV_TYPES[key] || GOV_TYPES.repub;
+}
+
+// 雇佣兵：立即成军（参照 GV_Army 佣兵：金币换兵、不耗人力、3倍单价）
+export function hireMercenaries(province, count) {
+  const me = window.__ownCountry;
+  if (!me) return false;
+  const troops = count * 1000;
+  const cost = Math.round(troops * 0.06);
+  if (aohRes.gold < cost) { UI.notify('金币不足（需要' + cost + '）'); return false; }
+  aohRes.gold -= cost;
+  if (armies[province] && armies[province].owner === me) armies[province].troops += troops;
+  else armies[province] = { owner: me, troops };
+  UI.updateArmyMarker(province, armies[province].troops, me);
+  UI.updateResources();
+  UI.notify('💰 雇佣兵 ' + troops + ' 人即刻入编 ' + UI.cn(province) + '（花费 ' + cost + ' 金）');
+  return true;
+}
+
+// 派遣间谍（参照 GV_Spy：40金/30天，回报情报，可能暴露）
+export function sendSpy(target) {
+  const me = window.__ownCountry;
+  if (!me || spyNetwork[target]) return false;
+  if (aohRes.gold < 40) { UI.notify('金币不足（需要40）'); return false; }
+  aohRes.gold -= 40;
+  spyNetwork[target] = { daysLeft: 30 };
+  UI.updateResources();
+  UI.notify('🕵️ 间谍已潜入 ' + UI.cn(target) + '（约30天回传情报）');
+  return true;
+}
+
+function dailySpy() {
+  const me = window.__ownCountry;
+  if (!me) return;
+  for (const t of Object.keys(spyNetwork)) {
+    const s = spyNetwork[t];
+    s.daysLeft--;
+    if (s.daysLeft > 0) continue;
+    delete spyNetwork[t];
+    const n = nations[t];
+    if (!n || !n.alive) { UI.notify('🕵️ 谍报网失效：目标已不存在'); continue; }
+    let troops = 0;
+    for (const a of Object.values(armies)) if (a.owner === t) troops += a.troops;
+    spyIntel[t] = {
+      gold: Math.round(n.gold), troops,
+      warSupport: Math.round(n.warSupport),
+      provinces: n.provinces.size,
+      milTech: n.milTech, at: Math.round(window.__gameDate ? window.__gameDate.y * 360 + window.__gameDate.m * 30 + window.__gameDate.d : 0),
+    };
+    UI.notify('🕵️ ' + UI.cn(t) + ' 情报：金' + spyIntel[t].gold + ' / 军' + troops + ' / 厌战' + (100 - spyIntel[t].warSupport) + ' / 省' + spyIntel[t].provinces);
+    if (Math.random() < 0.2) {
+      UI.notify('⚠️ 间谍在 ' + UI.cn(t) + ' 暴露！关系恶化');
+      addRelation(me, t, -15);
+    }
+  }
+}
+
+// 黄金时代计时（参照 GV_GoldenAges：1095天）
+function dailyGoldenAge() {
+  if (!playerGoldenAge.kind) return;
+  playerGoldenAge.daysLeft--;
+  if (playerGoldenAge.daysLeft <= 0) {
+    const kind = playerGoldenAge.kind;
+    playerGoldenAge.kind = null;
+    UI.notify('黄金时代落幕（' + (kind === 'civ' ? '文治' : kind === 'mil' ? '武功' : '科研') + '）');
+    logEvent('你的黄金时代落幕', 'world');
+  }
+}
+
 // 每日经济结算（所有国家）
 function dailyEconomy() {
+  dailySpy();
+  dailyGoldenAge();
   // 贷款日供
   const me0 = window.__ownCountry;
   if (me0 && playerLoans.length) {
@@ -114,7 +191,7 @@ function dailyEconomy() {
     if (!n.alive) continue;
     const isPlayer = n.isPlayer;
     let income = nationProvinceIncome(n) * 0.01 * (1 + n.ecoTech * 0.06);
-    if (isPlayer) income *= (1 + playerMods.income + TAX_INCOME[playerPolicy.tax + 1]);
+    if (isPlayer) income *= (1 + playerMods.income + TAX_INCOME[playerPolicy.tax + 1] + govOf(n.name).incomeMod + (playerGoldenAge.kind === 'civ' ? 0.25 : 0));
     let upkeep = nationUpkeep(n);
     if (isPlayer) upkeep *= (1 + MIL_UPKEEP[playerPolicy.military + 1] - playerMods.upkeep);
     // 傀儡纳贡（参照 GV_Vassals：5% 收入 + 15% 人力）
@@ -129,10 +206,10 @@ function dailyEconomy() {
     n.gold += income - upkeep;
     // 人力与人口（军费政策+法律影响玩家人力增长）
     let mpGain = Math.round(n.population * 0.000003);
-    if (isPlayer) mpGain = Math.round(mpGain * (1 + MIL_MANPOWER[playerPolicy.military + 1] + playerMods.manpowerRegen));
+    if (isPlayer) mpGain = Math.round(mpGain * (1 + MIL_MANPOWER[playerPolicy.military + 1] + playerMods.manpowerRegen + govOf(n.name).mpMod));
     n.manpower += mpGain;
     // 法律：每日外交点
-    if (isPlayer && playerMods.diploGain) aohRes.diplomacy += playerMods.diploGain;
+    if (isPlayer) aohRes.diplomacy += playerMods.diploGain + govOf(n.name).diploMod;
     if (n.provinces.size > 0) {
       let popSum = 0;
       for (const p of n.provinces) { const pd = provinceData[p]; if (pd) popSum += pd.population; }
@@ -142,7 +219,8 @@ function dailyEconomy() {
     const myWars = warsOf(n.name);
     if (myWars.length > 0) {
       const isAggressor = myWars.some(w => w.attackers.includes(n.name) && !w.defenders.includes(n.name));
-      n.warSupport = Math.max(0, n.warSupport - (isAggressor ? WAR_SUPPORT_DRAIN_AGGRESSOR : WAR_SUPPORT_DRAIN_DEFENDER));
+      const govWs = (1 + govOf(n.name).wsDrain);
+      n.warSupport = Math.max(0, n.warSupport - (isAggressor ? WAR_SUPPORT_DRAIN_AGGRESSOR : WAR_SUPPORT_DRAIN_DEFENDER) * govWs);
     } else {
       n.warSupport = Math.min(100, n.warSupport + WAR_SUPPORT_RECOVER);
     }
