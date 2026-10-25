@@ -1365,10 +1365,84 @@ function createBorderOverlay() {
     earthGroup.add(colorSphere);
     window.__colorSphereMat = colorSphere.material;
 
-    cctx.strokeStyle = 'rgba(0,0,0,1.0)';
-    cctx.lineWidth = 1.5;
-    cctx.lineJoin = 'round';
-    drawGeoJSON(countries, cctx, countryCanvas.width, countryCanvas.height);
+    // ===== 国界线：从省界数据推导轮廓并集（同源坐标，消除 50m/10m 双线重影）=====
+    // 原理：临时画布上把一国的所有省份描边(3px)，再用同路径填充挖空(destination-out)，
+    // 只留轮廓外缘 → 与省界完全重合的国界线；相邻两国各留外半 → 国际边界约3px，海岸1.5px
+    {
+      const cw = countryCanvas.width, ch = countryCanvas.height;
+      const tmp = document.createElement('canvas');
+      tmp.width = cw; tmp.height = ch;
+      const tctx = tmp.getContext('2d');
+      const pathProvinces = (ctx, feats) => {
+        ctx.beginPath();
+        for (const f of feats) {
+          const drawRing = (ring) => {
+            if (!ring || ring.length < 2) return;
+            const [sx, sy] = toCanvas(ring[0][0], ring[0][1], cw, ch);
+            ctx.moveTo(sx, sy);
+            for (let i = 1; i < ring.length; i++) {
+              const [px, py] = toCanvas(ring[i][0], ring[i][1], cw, ch);
+              ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+          };
+          if (f.geometry.type === 'Polygon') f.geometry.coordinates.forEach(drawRing);
+          else if (f.geometry.type === 'MultiPolygon') f.geometry.coordinates.forEach(poly => poly.forEach(drawRing));
+        }
+      };
+      const byCountry = {};
+      for (const f of provinces.features) {
+        const a = f.properties.admin;
+        if (!a || !f.geometry) continue;
+        (byCountry[a] = byCountry[a] || []).push(f);
+      }
+      for (const feats of Object.values(byCountry)) {
+        // 国家 bbox（画布坐标）：清理/回贴都只动这个区域
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        const scanB = (coords) => {
+          for (const c of coords) {
+            if (Array.isArray(c[0])) scanB(c);
+            else {
+              const [px, py] = toCanvas(c[0], c[1], cw, ch);
+              if (px < x0) x0 = px; if (px > x1) x1 = px;
+              if (py < y0) y0 = py; if (py > y1) y1 = py;
+            }
+          }
+        };
+        for (const f of feats) scanB(f.geometry.coordinates);
+        x0 = Math.max(0, Math.floor(x0) - 6); y0 = Math.max(0, Math.floor(y0) - 6);
+        x1 = Math.min(cw, Math.ceil(x1) + 6); y1 = Math.min(ch, Math.ceil(y1) + 6);
+        if (x1 <= x0 || y1 <= y0) continue;
+        // 1) 描边
+        tctx.globalCompositeOperation = 'source-over';
+        tctx.clearRect(x0, y0, x1 - x0, y1 - y0);
+        tctx.strokeStyle = 'rgba(0,0,0,1.0)';
+        tctx.lineWidth = 3;
+        tctx.lineJoin = 'round';
+        pathProvinces(tctx, feats);
+        tctx.stroke();
+        // 2) 同路径填充挖空内部（含描边内半）
+        tctx.globalCompositeOperation = 'destination-out';
+        tctx.fillStyle = '#000';
+        pathProvinces(tctx, feats);
+        tctx.fill();
+        tctx.globalCompositeOperation = 'source-over';
+        // 3) 只回贴涉及区域
+        cctx.drawImage(tmp, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+      }
+      // 无省级数据的国家（微型岛国等）回退 50m 描边
+      const covered = new Set(Object.keys(byCountry));
+      const uncovered = countries.features.filter(f => {
+        const n = f.properties.NAME || f.properties.name;
+        return n && n !== 'Antarctica' && !covered.has(n);
+      });
+      if (uncovered.length) {
+        cctx.strokeStyle = 'rgba(0,0,0,1.0)';
+        cctx.lineWidth = 1.5;
+        cctx.lineJoin = 'round';
+        drawGeoJSON({ type: 'FeatureCollection', features: uncovered }, cctx, cw, ch);
+      }
+    }
 
     const countryTex = new THREE.CanvasTexture(countryCanvas);
     countryTex.colorSpace = THREE.SRGBColorSpace;

@@ -79,7 +79,20 @@ for f in cgeo['features']:
     if nm: shortNames.add(nm)
     if ad and nm: longToShort[ad] = nm
 
+# 10m admin_1 与 50m admin_0 个别名称对不上，手工对齐（否则国界双线+省份挂不上国家）
+ADMIN_FIX = {
+    'Czech Republic': 'Czechia',
+    'Macedonia': 'North Macedonia',
+    'Guinea Bissau': 'Guinea-Bissau',
+    'Sao Tome and Principe': 'São Tomé and Principe',
+    'Cape Verde': 'Cabo Verde',
+    'Macau S.A.R': 'Macao',
+    'Swaziland': 'eSwatini',
+    'United States Minor Outlying Islands': 'U.S. Minor Outlying Is.',
+}
+
 def normalize_admin(admin):
+    if admin in ADMIN_FIX: return ADMIN_FIX[admin]
     if admin in shortNames: return admin
     return longToShort.get(admin, admin)
 
