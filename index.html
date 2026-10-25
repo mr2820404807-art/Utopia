@@ -1360,28 +1360,33 @@ function createBorderOverlay() {
       map: colorTex, transparent: true, depthTest: true, depthWrite: false,
     }));
     colorSphere.name = 'countryColors';
+    colorSphere.renderOrder = 8;
     const oldColor = earthGroup.getObjectByName('countryColors');
     if (oldColor) earthGroup.remove(oldColor);
     earthGroup.add(colorSphere);
     window.__colorSphereMat = colorSphere.material;
 
-    // ===== 国界线：从省界数据推导轮廓并集（同源坐标，消除 50m/10m 双线重影）=====
-    // 原理：临时画布上把一国的所有省份描边(3px)，再用同路径填充挖空(destination-out)，
-    // 只留轮廓外缘 → 与省界完全重合的国界线；相邻两国各留外半 → 国际边界约3px，海岸1.5px
+    // ===== 国界线：半分辨率形态学推导（4096x2048，内存仅为全尺寸方案1/4，视觉等效）=====
+    // mask = 国家省份并集填充；eroded = mask 八向1px腐蚀；outline = mask-eroded → 国家轮廓环。
+    // 内部省界在构造上不存在；alpha 二值化消除抗锯齿缝隙幽灵线。
+    countryCanvas.width = 4096; countryCanvas.height = 2048;
     {
-      const cw = countryCanvas.width, ch = countryCanvas.height;
-      const tmp = document.createElement('canvas');
-      tmp.width = cw; tmp.height = ch;
-      const tctx = tmp.getContext('2d');
-      const pathProvinces = (ctx, feats) => {
+      const MW = 4096, MH = 2048;
+      const mask = document.createElement('canvas'); mask.width = MW; mask.height = MH;
+      const mctx = mask.getContext('2d');
+      const eroded = document.createElement('canvas'); eroded.width = MW; eroded.height = MH;
+      const ectx = eroded.getContext('2d');
+      const SHIFTS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      const toM = (lon, lat) => [(lon + 180) / 360 * MW, (90 - lat) / 180 * MH];
+      const pathM = (ctx, feats) => {
         ctx.beginPath();
         for (const f of feats) {
           const drawRing = (ring) => {
             if (!ring || ring.length < 2) return;
-            const [sx, sy] = toCanvas(ring[0][0], ring[0][1], cw, ch);
+            const [sx, sy] = toM(ring[0][0], ring[0][1]);
             ctx.moveTo(sx, sy);
             for (let i = 1; i < ring.length; i++) {
-              const [px, py] = toCanvas(ring[i][0], ring[i][1], cw, ch);
+              const [px, py] = toM(ring[i][0], ring[i][1]);
               ctx.lineTo(px, py);
             }
             ctx.closePath();
@@ -1397,38 +1402,44 @@ function createBorderOverlay() {
         (byCountry[a] = byCountry[a] || []).push(f);
       }
       for (const feats of Object.values(byCountry)) {
-        // 国家 bbox（画布坐标）：清理/回贴都只动这个区域
         let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
         const scanB = (coords) => {
           for (const c of coords) {
             if (Array.isArray(c[0])) scanB(c);
             else {
-              const [px, py] = toCanvas(c[0], c[1], cw, ch);
+              const [px, py] = toM(c[0], c[1]);
               if (px < x0) x0 = px; if (px > x1) x1 = px;
               if (py < y0) y0 = py; if (py > y1) y1 = py;
             }
           }
         };
         for (const f of feats) scanB(f.geometry.coordinates);
-        x0 = Math.max(0, Math.floor(x0) - 6); y0 = Math.max(0, Math.floor(y0) - 6);
-        x1 = Math.min(cw, Math.ceil(x1) + 6); y1 = Math.min(ch, Math.ceil(y1) + 6);
+        const pad = 5;
+        x0 = Math.max(0, Math.floor(x0) - pad); y0 = Math.max(0, Math.floor(y0) - pad);
+        x1 = Math.min(MW, Math.ceil(x1) + pad); y1 = Math.min(MH, Math.ceil(y1) + pad);
         if (x1 <= x0 || y1 <= y0) continue;
-        // 1) 描边
-        tctx.globalCompositeOperation = 'source-over';
-        tctx.clearRect(x0, y0, x1 - x0, y1 - y0);
-        tctx.strokeStyle = 'rgba(0,0,0,1.0)';
-        tctx.lineWidth = 3;
-        tctx.lineJoin = 'round';
-        pathProvinces(tctx, feats);
-        tctx.stroke();
-        // 2) 同路径填充挖空内部（含描边内半）
-        tctx.globalCompositeOperation = 'destination-out';
-        tctx.fillStyle = '#000';
-        pathProvinces(tctx, feats);
-        tctx.fill();
-        tctx.globalCompositeOperation = 'source-over';
-        // 3) 只回贴涉及区域
-        cctx.drawImage(tmp, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+        const bw = x1 - x0, bh = y1 - y0;
+        mctx.globalCompositeOperation = 'source-over';
+        mctx.clearRect(x0, y0, bw, bh);
+        mctx.fillStyle = '#000';
+        pathM(mctx, feats);
+        mctx.fill();
+        ectx.globalCompositeOperation = 'source-over';
+        ectx.clearRect(x0, y0, bw, bh);
+        ectx.drawImage(mask, x0, y0, bw, bh, x0, y0, bw, bh);
+        ectx.globalCompositeOperation = 'destination-in';
+        for (const [dx, dy] of SHIFTS) {
+          ectx.drawImage(mask, x0, y0, bw, bh, x0 + dx, y0 + dy, bw, bh);
+        }
+        ectx.globalCompositeOperation = 'source-over';
+        mctx.globalCompositeOperation = 'destination-out';
+        mctx.drawImage(eroded, x0, y0, bw, bh, x0, y0, bw, bh);
+        mctx.globalCompositeOperation = 'source-over';
+        const oimg = mctx.getImageData(x0, y0, bw, bh);
+        const od = oimg.data;
+        for (let pi = 3; pi < od.length; pi += 4) od[pi] = od[pi] > 110 ? 255 : 0;
+        mctx.putImageData(oimg, x0, y0);
+        cctx.drawImage(mask, x0, y0, bw, bh, x0, y0, bw, bh);
       }
       // 无省级数据的国家（微型岛国等）回退 50m 描边
       const covered = new Set(Object.keys(byCountry));
@@ -1438,24 +1449,27 @@ function createBorderOverlay() {
       });
       if (uncovered.length) {
         cctx.strokeStyle = 'rgba(0,0,0,1.0)';
-        cctx.lineWidth = 1.5;
+        cctx.lineWidth = 1.2;
         cctx.lineJoin = 'round';
-        drawGeoJSON({ type: 'FeatureCollection', features: uncovered }, cctx, cw, ch);
+        drawGeoJSON({ type: 'FeatureCollection', features: uncovered }, cctx, MW, MH);
       }
+      // 用完即弃，缓解巨型画布内存压力
+      mask.width = 0; mask.height = 0; eroded.width = 0; eroded.height = 0;
     }
-
     const countryTex = new THREE.CanvasTexture(countryCanvas);
     countryTex.colorSpace = THREE.SRGBColorSpace;
     countryTex.anisotropy = 8;
-    const borderGeo = new THREE.SphereGeometry(1.005, 128, 128);
+    const borderGeo = new THREE.SphereGeometry(1.006, 128, 128); // 与省界同半径：消除双层视差重影
     const countrySphere = new THREE.Mesh(borderGeo, new THREE.MeshBasicMaterial({
       map: countryTex, transparent: true, opacity: 0.85, depthTest: true, depthWrite: false,
     }));
     countrySphere.name = 'countryBorders';
+    countrySphere.renderOrder = 9;
     const oldC = earthGroup.getObjectByName('countryBorders');
     if (oldC) earthGroup.remove(oldC);
     earthGroup.add(countrySphere);
 
+    window.__borderCanvases = { country: countryCanvas, province: provinceCanvas };
     const provinceTex = new THREE.CanvasTexture(provinceCanvas);
     provinceTex.colorSpace = THREE.SRGBColorSpace;
     provinceTex.anisotropy = 8;
@@ -1465,6 +1479,7 @@ function createBorderOverlay() {
     });
     const provinceSphere = new THREE.Mesh(provinceGeo, provinceMat);
     provinceSphere.name = 'provinceBorders';
+    provinceSphere.renderOrder = 10;
     const oldP = earthGroup.getObjectByName('provinceBorders');
     if (oldP) earthGroup.remove(oldP);
     earthGroup.add(provinceSphere);

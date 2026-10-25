@@ -46,18 +46,48 @@ def round_geom(geom, nd=3):
         return [rr(x) for x in c]
     return {'type': geom['type'], 'coordinates': rr(geom['coordinates'])}
 
-def thin_ring(ring, keep=1):
-    # 均匀抽稀顶点（保首尾）
-    if keep <= 1 or len(ring) < 12: return ring
-    n = len(ring)
-    return [ring[int(i * (n - 1) / (n - 1))] for i in range(0, n, max(1, len(ring) // 1))]
+def dp_thin(ring, tol=0.004):
+    """Douglas-Peucker 简化（确定性）：相邻省份共享的同一条边界输入相同 → 输出相同，
+    避免两侧各自抽稀产生两条锯齿错位线导致的'重影'"""
+    pts = [p[:2] for p in ring]
+    if pts and pts[0] == pts[-1]:
+        pts = pts[:-1]
+    if len(pts) < 4:
+        out = pts[:]
+    else:
+        keep = [False] * len(pts)
+        keep[0] = keep[-1] = True
+        stack = [(0, len(pts) - 1)]
+        while stack:
+            i, j = stack.pop()
+            if j <= i + 1:
+                continue
+            ax, ay = pts[i]; bx, by = pts[j]
+            dx, dy = bx - ax, by - ay
+            L = math.hypot(dx, dy) or 1e-12
+            best, bi = -1.0, -1
+            for k in range(i + 1, j):
+                d = abs(dy * pts[k][0] - dx * pts[k][1] + bx * ay - by * ax) / L
+                if d > best:
+                    best, bi = d, k
+            if best > tol:
+                keep[bi] = True
+                stack.append((i, bi))
+                stack.append((bi, j))
+        out = [pts[k] for k in range(len(pts)) if keep[k]]
+    if out:
+        out.append(out[0])
+    return out
 
 def thin_geom(geom, max_pts):
-    """每个环限制顶点数：超过 max_pts 时均匀抽稀"""
+    tol = 0.004
     def th_ring(ring):
-        if len(ring) <= max_pts: return ring
-        step = (len(ring) - 1) / (max_pts - 1)
-        return [ring[round(i * step)] for i in range(max_pts)]
+        r = dp_thin(ring, tol)
+        if len(r) <= max_pts:
+            return r
+        # DP 后仍超长的特大环：再均匀抽稀（这类大环彼此不共享边界，安全）
+        step = (len(r) - 1) / (max_pts - 1)
+        return [r[round(i * step)] for i in range(max_pts)]
     def th(poly):
         return [th_ring(r) for r in poly]
     if geom['type'] == 'Polygon':
