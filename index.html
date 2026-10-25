@@ -1185,8 +1185,27 @@ const bumpMap = createBumpMap();
         texture.anisotropy = 8;
         const earthMat = new THREE.MeshStandardMaterial({
           map: texture, bumpMap: bumpMap, bumpScale: 0.02,
-          roughness: 0.85, metalness: 0.0,
+          roughness: 0.88, metalness: 0.0,
         });
+        // 夜面城市灯光：emissiveMap 乘以昼夜因子（向阳面熄灯，背阳面亮灯）
+        earthMat.onBeforeCompile = (shader) => {
+          shader.uniforms.uSunView = { value: new THREE.Vector3(1, 0, 0) };
+          shader.fragmentShader = shader.fragmentShader
+            .replace('void main() {', 'uniform vec3 uSunView;' + String.fromCharCode(10) + 'void main() {')
+            .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  float __dayFactor = clamp(dot(normalize(vNormal), normalize(uSunView)), 0.0, 1.0);
+  totalEmissiveRadiance *= (1.0 - __dayFactor * __dayFactor);`);
+          earthMat.userData.shader = shader;
+        };
+        window.__earthMatRef = earthMat;
+        // 城市灯光可能先于贴图就绪（竞态双端兜底）
+        if (window.__pendingCityTex) {
+          earthMat.emissiveMap = window.__pendingCityTex;
+          earthMat.emissive = new THREE.Color(0xffcf9a);
+          earthMat.emissiveIntensity = 1.35;
+          earthMat.needsUpdate = true;
+          window.__pendingCityTex = null;
+        }
         const earth = new THREE.Mesh(earthGeo, earthMat);
         earth.name = 'earth';
         earthGroup.add(earth);
@@ -1470,6 +1489,51 @@ function createBorderOverlay() {
     earthGroup.add(countrySphere);
 
     window.__borderCanvases = { country: countryCanvas, province: provinceCanvas };
+
+    // 夜面城市灯光：以省份中心+哈希亮度生成暖色光点图（3300省，百毫秒级）
+    {
+      const cl = document.createElement('canvas');
+      cl.width = 2048; cl.height = 1024;
+      const clx = cl.getContext('2d');
+      for (const f of provinces.features) {
+        const nm = f.properties.name;
+        if (!nm || !f.geometry) continue;
+        const h = nameHash(nm);
+        // 快速取几何中心（首环顶点均值）
+        let cx = 0, cy = 0, cn = 0;
+        const acc = (coords) => {
+          for (const c of coords) {
+            if (Array.isArray(c[0])) acc(c);
+            else { cx += c[0]; cy += c[1]; cn++; }
+          }
+        };
+        acc(f.geometry.coordinates);
+        if (!cn) continue;
+        const px = (cx / cn + 180) / 360 * 2048;
+        const py = (90 - cy / cn) / 180 * 1024;
+        const r = 0.8 + (h % 16) / 8;        // 0.8~2.8 px
+        const alpha = 0.3 + (h % 60) / 100;  // 0.3~0.9
+        const grad = clx.createRadialGradient(px, py, 0, px, py, r * 2.2);
+        grad.addColorStop(0, 'rgba(255,214,150,' + alpha + ')');
+        grad.addColorStop(0.4, 'rgba(255,180,110,' + alpha * 0.45 + ')');
+        grad.addColorStop(1, 'rgba(255,160,80,0)');
+        clx.fillStyle = grad;
+        clx.beginPath();
+        clx.arc(px, py, r * 2.2, 0, Math.PI * 2);
+        clx.fill();
+      }
+      const cityTex = new THREE.CanvasTexture(cl);
+      cityTex.colorSpace = THREE.SRGBColorSpace;
+      const mat = window.__earthMatRef;
+      if (mat) {
+        mat.emissiveMap = cityTex;
+        mat.emissive = new THREE.Color(0xffcf9a);
+        mat.emissiveIntensity = 1.35;
+        mat.needsUpdate = true;
+      } else {
+        window.__pendingCityTex = cityTex;
+      }
+    }
     const provinceTex = new THREE.CanvasTexture(provinceCanvas);
     provinceTex.colorSpace = THREE.SRGBColorSpace;
     provinceTex.anisotropy = 8;
@@ -2685,15 +2749,65 @@ function tickTime(now) {
 }
 updateTimeDisplay();
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+// ===== 太阳系光照：方向光=太阳（昼夜晨昏线），环境光只做夜面微光补足 =====
+const ambientLight = new THREE.AmbientLight(0x7788aa, 0.34);
 scene.add(ambientLight);
-const hemiLight = new THREE.HemisphereLight(0x8899cc, 0x445566, 0.5);
+const hemiLight = new THREE.HemisphereLight(0x99bbee, 0x223344, 0.16);
 scene.add(hemiLight);
+
+// 太阳本体：核心亮斑 + 大范围暖辉（加法混合）
+const sunPivot = new THREE.Group();
+scene.add(sunPivot);
+const SUN_DIST = 38;
+const SUN_DIR0 = new THREE.Vector3(1, 0.34, 0.62).normalize();
+function makeGlowTexture(inner, outer) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+  grad.addColorStop(0, inner);
+  grad.addColorStop(0.25, outer);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+const sunCoreMat = new THREE.SpriteMaterial({ map: makeGlowTexture('rgba(255,252,240,1)', 'rgba(255,220,150,0.9)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+const sunCore = new THREE.Sprite(sunCoreMat);
+sunCore.position.copy(SUN_DIR0).multiplyScalar(SUN_DIST);
+sunCore.scale.set(3.2, 3.2, 1);
+sunPivot.add(sunCore);
+const sunGlowMat = new THREE.SpriteMaterial({ map: makeGlowTexture('rgba(255,236,190,0.55)', 'rgba(255,190,110,0.28)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+const sunGlow = new THREE.Sprite(sunGlowMat);
+sunGlow.position.copy(sunCore.position);
+sunGlow.scale.set(10, 10, 1);
+sunPivot.add(sunGlow);
+// 方向光挂在与太阳同方向
+const sunLight = new THREE.DirectionalLight(0xfff1d8, 2.3);
+sunLight.position.copy(SUN_DIR0).multiplyScalar(12);
+sunPivot.add(sunLight);
+window.__sunPivot = sunPivot;
+const __sunWorldDir = new THREE.Vector3();
+const __tmpM4 = new THREE.Matrix4();
+function updateSunUniform() {
+  const mat = window.__earthMatRef;
+  if (!mat || !mat.userData.shader) return;
+  sunCore.getWorldPosition(__sunWorldDir).normalize();
+  __tmpM4.copy(camera.matrixWorldInverse);
+  const u = mat.userData.shader.uniforms.uSunView;
+  if (u) u.value.copy(__sunWorldDir).transformDirection(__tmpM4);
+}
+window.__updateSunUniform = updateSunUniform;
 
 function animate() {
   requestAnimationFrame(animate);
   window.__frameCount = (window.__frameCount || 0) + 1;
   try {
+  // 太阳缓慢巡天（约4分钟一周）+ 更新地球昼夜 shader
+  if (window.__sunPivot) {
+    window.__sunPivot.rotation.y += 0.00042;
+    window.__updateSunUniform();
+  }
   tickTime(performance.now());
 
   if (gameState === 'menu') {
