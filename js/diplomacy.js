@@ -1,7 +1,7 @@
 // ===== 外交系统：关系、宣战、战争分数、和谈、同盟、傀儡 =====
 // 乌托邦 · 一期改造
 import {
-  aohRes, nations, wars, relations, alliances, truces, justifying, gameCtx,
+  aohRes, nations, wars, relations, alliances, truces, justifying, gameCtx, logEvent,
   warIdCounter, provinceAdj, addRelation, getRelation, hasTruce, setTruce, relKey,
   clearObj, clearArray, onDay, UI, registerSave,
 } from './state.js';
@@ -75,6 +75,8 @@ export function declareWar(aggressor, defender, opts = {}) {
   const who = aggressor === window.__ownCountry ? '你' : UI.cn(aggressor);
   const whom = defender === window.__ownCountry ? '你' : UI.cn(defender);
   UI.notify(`📢 ${who} 对 ${whom} 宣战！${opts.justified ? '' : '（无战争借口，声望受损）'}`);
+  if (UI.sfx) UI.sfx.war();
+  logEvent(`${who}对${whom}宣战`, 'war');
   UI.refreshDiploPanel();
   UI.refreshWarPanel();
   return { ok: true, war };
@@ -181,6 +183,7 @@ export function makePeace(war, winnerSide, deal, today) {
       nations[mainLoser].overlord = mainWinner;
       addRelation(mainLoser, mainWinner, 80);
       UI.notify(`👑 ${UI.cn(mainLoser)} 成为 ${UI.cn(mainWinner)} 的傀儡国`);
+      logEvent(`${UI.cn(mainLoser)}成为${UI.cn(mainWinner)}的傀儡国`, 'peace');
     }
   } else {
     UI.notify('🕊️ 和约签订：白和平');
@@ -312,6 +315,7 @@ function dailyDiplomacy(today) {
       addRelation(vassal, lordName, -50);
       setTruce(vassal, lordName, today, 2);
       UI.notify(`📢 ${UI.cn(vassal)} 摆脱了 ${UI.cn(lordName)} 的控制，宣布独立！`);
+      logEvent(`${UI.cn(vassal)}摆脱宗主${UI.cn(lordName)}宣布独立`, 'war');
     }
   }
 }

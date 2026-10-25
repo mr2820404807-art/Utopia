@@ -2,7 +2,7 @@
 // 乌托邦 · 一期改造
 import { gdpMap, popMap, nameHash, dataKey } from './data.js';
 import {
-  aohRes, armies, nations, wars, battles, relations, alliances, gameCtx, relKey, provinceData, provinceUnrest,
+  aohRes, armies, nations, wars, battles, relations, alliances, gameCtx, relKey, provinceData, provinceUnrest, logEvent,
   clearObj, UI, registerSave,
 } from './state.js';
 
@@ -181,6 +181,7 @@ export function transferProvince(province, newOwner) {
       if (b.attacker.owner === pn.name || window.__territoryOwner[p] === pn.name) endBattle(p);
     }
     UI.notify(`🏳️ ${UI.cn(pn.name)} 已灭亡`);
+    logEvent(`${UI.cn(pn.name)}灭亡`, 'war');
   }
   if (pn && pn.capital === province && pn.provinces.size > 0) {
     pn.capital = [...pn.provinces][0];

@@ -372,6 +372,7 @@ body.theme-parchment #time-text, body.theme-parchment .bar-country { color: #f0d
     <button class="bp-btn" id="bp-officer" title="军官团 - 查看与成长">军官</button>
     <button class="bp-btn" id="bp-reorganize" title="预算政策 - 税收/科研/军费与贷款">预算</button>
     <button class="bp-btn" id="bp-transport" title="法律 - 以威望颁布国策">法律</button>
+    <button class="bp-btn" id="bp-mute" title="音效开关">🔊</button>
   </div>
   <div class="bp-sep"></div>
   <div class="bp-section">
@@ -420,6 +421,13 @@ body.theme-parchment #time-text, body.theme-parchment .bar-country { color: #f0d
   <div class="aoh-popup">
     <div class="popup-title">外交关系<button class="popup-close" data-close="diplomacy-popup">✕</button></div>
     <div class="diplo-grid" id="diplo-grid"></div>
+  </div>
+</div>
+
+<div class="aoh-popup-overlay" id="chronicle-popup">
+  <div class="aoh-popup" style="min-width:480px">
+    <div class="popup-title">📜 世界编年史<button class="popup-close" data-close="chronicle-popup">✕</button></div>
+    <div id="chronicle-list" style="max-height:60vh;overflow-y:auto;font-size:12px"></div>
   </div>
 </div>
 
@@ -506,7 +514,7 @@ import { nameHash, coastalCountries, gdpMap, popMap, dataKey } from './js/data.j
 import {
   UI, aohRes, playerMods, armies, provinceData, buildingQueue, techProgress, aohTechBonuses,
   officerPool, countryFlags, nations, wars, battles, justifying, gameCtx,
-  provinceAdj, seaAdj, provinceCenter, resetAllState, runTicks, runDay, saveAllSections, loadAllSections, getRelation, addRelation, alliances,
+  provinceAdj, seaAdj, provinceCenter, chronicle, logEvent, resetAllState, runTicks, runDay, saveAllSections, loadAllSections, getRelation, addRelation, alliances,
   playerPolicy, playerLoans, provinceUnrest, playerLaws,
 } from './js/state.js';
 import { initNations, transferProvince, playerNation, nationPower } from './js/nations.js';
@@ -524,6 +532,7 @@ import { loanOffer, takeLoan } from './js/economy.js';
 import './js/economy.js';
 import './js/ai.js';
 import './js/victory.js';
+import { Sfx } from './js/audio.js';
 
 // ===== UI 桥：把渲染层能力注入系统模块（模块只通过 UI.* 触碰渲染）=====
 let territoryDirty = false, lastTerritoryRepaint = 0;
@@ -605,6 +614,8 @@ Object.assign(UI, {
   battleFx: (p) => aohExplosionEffect(p),
   explosion: (p) => aohExplosionEffect(p),
   refreshWarPanel: refreshWarPanelImpl,
+  refreshChronicle: refreshChronicleImpl,
+  sfx: Sfx,
   refreshDiploPanel: refreshDiploPanelImpl,
   makeBattleMarker: makeBattleMarkerImpl,
   showEndScreen: showEndScreenImpl,
@@ -707,6 +718,7 @@ function showEndScreenImpl(r) {
   overlay.id = 'end-screen';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(0,0,10,.88);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity 1s';
   const isWin = r.type === 'victory';
+  if (isWin) Sfx.victory(); else Sfx.defeat();
   overlay.innerHTML = `
     <div style="font-size:64px;margin-bottom:8px">${isWin ? '🏆' : '💀'}</div>
     <div style="font-size:40px;font-weight:300;color:${isWin ? '#ffd877' : '#ff8877'};letter-spacing:12px;margin-bottom:14px">${r.title}</div>
@@ -2951,6 +2963,7 @@ function aohTickArmyMovement() {
 let lastFrameTime = performance.now();
 
 const advanceTime = function() {
+  window.__gameDate = { y: timeYear, m: timeMonth, d: timeDay };
   _origAdvanceTime();
   aohTickArmyMovement();
   runTicks();
@@ -3541,7 +3554,11 @@ document.getElementById('sb-tech').addEventListener('click', () => {
   aohRenderTech();
 });
 
-document.getElementById('sb-mission').addEventListener('click', () => { if (gameState === 'playing') aohNotify('任务系统开发中...（二期）'); });
+document.getElementById('sb-mission').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  document.getElementById('chronicle-popup').classList.add('visible');
+  renderChronicle();
+});
 document.getElementById('sb-law').addEventListener('click', () => { if (gameState === 'playing') aohNotify('法律系统开发中...（二期）'); });
 document.getElementById('sb-court').addEventListener('click', () => { if (gameState === 'playing') aohNotify('宫廷系统开发中...（二期）'); });
 document.getElementById('sb-war').addEventListener('click', () => {
@@ -3559,6 +3576,10 @@ document.getElementById('bp-transport').addEventListener('click', () => {
   if (gameState !== 'playing') return;
   document.getElementById('laws-popup').classList.add('visible');
   renderLawsPanel();
+});
+document.getElementById('bp-mute').addEventListener('click', (e) => {
+  const m = Sfx.toggleMute();
+  e.target.textContent = m ? '🔇' : '🔊';
 });
 
 function aohUpdateResources() {
@@ -4552,6 +4573,28 @@ function aohRenderDiplomacy() {
       }
     });
   });
+}
+
+// ===== 世界编年史面板 =====
+const CHRONICLE_ICONS = { war: '⚔', peace: '🕊', revolt: '🔥', world: '·' };
+function renderChronicle() {
+  const list = document.getElementById('chronicle-list');
+  if (!list) return;
+  const items = [...chronicle].reverse().slice(0, 120);
+  if (!items.length) {
+    list.innerHTML = '<div style="padding:30px;text-align:center;color:#778899;font-size:13px">历史尚未开始书写……</div>';
+    return;
+  }
+  list.innerHTML = items.map(e =>
+    `<div style="display:flex;gap:8px;padding:6px 4px;border-bottom:1px solid rgba(120,100,70,.12)">
+      <span style="color:#a8987a;font-family:'Courier New',monospace;white-space:nowrap">${e.y}.${String(e.m).padStart(2, '0')}.${String(e.d).padStart(2, '0')}</span>
+      <span style="color:#c9a86a">${CHRONICLE_ICONS[e.type] || '·'}</span>
+      <span style="color:#d8cba8">${e.text}</span>
+    </div>`).join('');
+}
+function refreshChronicleImpl() {
+  const popup = document.getElementById('chronicle-popup');
+  if (popup && popup.classList.contains('visible')) renderChronicle();
 }
 
 // ===== 预算政策面板（参照文明时代3 GV_Budget 三滑杆 + GV_Loan 贷款）=====

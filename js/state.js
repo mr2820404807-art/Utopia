@@ -18,6 +18,7 @@ export const UI = {
   explosion: () => {},
   screenShake: () => {},
   refreshWarPanel: () => {},
+  sfx: null,
   refreshDiploPanel: () => {},
 };
 
@@ -81,6 +82,14 @@ export const gameCtx = {          // 一局的全局参数
   worldTension: 0,                // 0-100
   aiWarLimit: 5,
 };
+
+// ---- 世界编年史 ----
+export const chronicle = [];   // {y, m, d, text, type}
+export function logEvent(text, type = 'world') {
+  chronicle.push({ y: window.__gameDate ? window.__gameDate.y : 2026, m: window.__gameDate ? window.__gameDate.m : 1, d: window.__gameDate ? window.__gameDate.d : 1, text, type });
+  if (chronicle.length > 300) chronicle.shift();
+  if (UI.refreshChronicle) UI.refreshChronicle();
+}
 
 // ---- 邻接表（combat.js 构建）----
 export const provinceAdj = {};          // name -> Set(name) 陆路
@@ -147,6 +156,7 @@ registerSave('policies',
     loans: playerLoans.map(l => ({ ...l })),
     unrest: { ...provinceUnrest },
     laws: { ...playerLaws },
+    chronicle: chronicle.slice(-200),
   }),
   (data) => {
     playerPolicy.tax = 0; playerPolicy.research = 0; playerPolicy.military = 0;
@@ -156,6 +166,8 @@ registerSave('policies',
     (data.loans || []).forEach(l => playerLoans.push(l));
     Object.assign(provinceUnrest, data.unrest || {});
     Object.assign(playerLaws, data.laws || {});
+    chronicle.length = 0;
+    (data.chronicle || []).forEach(e => chronicle.push(e));
     // 围城状态不存档：读档后围城重置（进攻方部队已在目标省驻扎模型外，直接按占领处理）
   });
 

@@ -3,7 +3,7 @@
 import { lonLatDist, nameHash, coastalCountries } from './data.js';
 import {
   armies, battles, nations, wars, provinceData, provinceAdj, seaAdj, provinceCenter,
-  officerPool, playerMods, sieges, clearObj, onDay, UI, registerSave,
+  officerPool, playerMods, sieges, logEvent, clearObj, onDay, UI, registerSave,
 } from './state.js';
 import { transferProvince, endBattle } from './nations.js';
 import { isAtWar, warEvent } from './diplomacy.js';
@@ -298,6 +298,9 @@ function finishOccupy(province, attacker, prevOwner) {
   grantOfficerXP(attacker.officerId, 40 + Math.round(Math.random() * 40));
   if (attacker.owner === window.__ownCountry) {
     UI.notify(`🏁 占领 ${UI.cn(province)}！`);
+    logEvent(`${UI.cn(prevOwner)}的${UI.cn(province)}被你占领`, 'war');
+  } else if (nations[prevOwner] && nations[prevOwner].greatPower) {
+    logEvent(`${UI.cn(prevOwner)}的${UI.cn(province)}被${UI.cn(attacker.owner)}攻占`, 'war');
   }
   UI.refreshWarPanel();
 }

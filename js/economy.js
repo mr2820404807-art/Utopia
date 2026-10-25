@@ -1,7 +1,7 @@
 // ===== 经济系统：省份经济 -> 国库，维持费，人力，战争支持度，政策/贷款/动荡 =====
 // 乌托邦 · 一期改造
 import {
-  aohRes, armies, nations, provinceData, playerMods, gameCtx,
+  aohRes, armies, nations, provinceData, playerMods, gameCtx, logEvent,
   playerPolicy, playerLoans, provinceUnrest, sieges, playerLaws,
   onDay, UI,
 } from './state.js';
@@ -64,6 +64,7 @@ function dailyUnrest() {
         UI.updateArmyMarker(pname, armies[pname].troops, orig);
         provinceUnrest[pname] = 30;
         UI.notify(`🔥 ${UI.cn(pname)} 爆发起义，已复归 ${UI.cn(orig)}！`);
+        logEvent(`${UI.cn(pname)}起义，复归${UI.cn(orig)}`, 'revolt');
       } else {
         const pd = provinceData[pname];
         if (pd) pd.economy = Math.max(5, pd.economy - 25);
