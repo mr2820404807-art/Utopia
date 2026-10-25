@@ -1008,20 +1008,14 @@ function animateArmyPath(path, troops, countryCode, daysPerHop, invade, meta = {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, 128, 80);
   const cx = 64, cy = 24;
-  const flagUrl = getFlagUrl(countryCode);
-  if (flagUrl) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => { ctx.drawImage(img, cx - 20, cy - 12, 40, 24); moveMat.map.needsUpdate = true; };
-    img.src = flagUrl;
-  }
+  const moveTexture = new THREE.CanvasTexture(canvas);
+  const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: true, depthWrite: false });
+  drawFlagToMarker(ctx, getFlagUrl(countryCode), cx, cy, () => { moveMat.map.needsUpdate = true; });
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 13px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText(troops >= 1000 ? (troops/1000).toFixed(1)+'k' : troops, cx, cy + 18);
-  const moveTexture = new THREE.CanvasTexture(canvas);
-  const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: true, depthWrite: false });
   const sprite = new THREE.Sprite(moveMat);
   sprite.scale.set(0.025, 0.016, 1);
   sprite.position.copy(points[0]);
@@ -2447,7 +2441,7 @@ function confirmSelection() {
       rotAnimX.active = true;
       // 镜头俯冲：拉近到该国上空，形成完整的过渡动画
       camAnim.from = camera.position.clone();
-      const diveDist = 1.45;
+      const diveDist = 2.0;
       camAnim.to = new THREE.Vector3(0, 0.22 * diveDist, diveDist);
       camAnim.t = 0;
       camAnim.lastTick = performance.now();
@@ -2464,7 +2458,9 @@ function confirmSelection() {
   previewGradientEl.classList.add('sink');
 
   aohShowUI();
-  aohInitCountryData(confirmedCountry.enName);
+  // 重初始化（国家模型/驻军标记 ~100ms 同步块）延后执行，让入场动画先流畅起步
+  const startCountry = confirmedCountry.enName;
+  setTimeout(() => { if (gameState === 'playing') aohInitCountryData(startCountry); }, 1700);
 }
 
 const menuScreen = document.getElementById('menu-screen');
@@ -3381,9 +3377,12 @@ function aohLoadGame(slot) {
     document.getElementById('back-btn').classList.remove('visible');
     document.getElementById('confirm-btn').classList.remove('visible');
     document.getElementById('preview-placeholder').classList.add('hidden');
-    // 渲染恢复
-    refreshAllArmyMarkers();
-    aohRepaintTerritoryColors();
+    // 渲染恢复（重绘与标记延后一拍，让飞入动画先流畅起步）
+    setTimeout(() => {
+      if (gameState !== 'playing') return;
+      refreshAllArmyMarkers();
+      aohRepaintTerritoryColors();
+    }, 1700);
     aohRenderTech();
     aohRenderOfficers();
     aohRenderArmyCounts();
@@ -3595,6 +3594,30 @@ function getProvinceCenter(name) {
   return latLonToVec3(cy / bestRing.length, cx / bestRing.length, 1.02);
 }
 
+// 国旗图缓存：同一国家只下载一次，多个标记共享（避免700个标记各自下载重绘）
+const flagImgCache = {};
+function drawFlagToMarker(ctx, flagUrl, cx, cy, onDone) {
+  if (!flagUrl) return;
+  let entry = flagImgCache[flagUrl];
+  if (!entry) {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    entry = flagImgCache[flagUrl] = { img, loaded: false, waiters: [] };
+    img.onload = () => {
+      entry.loaded = true;
+      for (const w of entry.waiters) w();
+      entry.waiters = [];
+    };
+    img.src = flagUrl;
+  }
+  const draw = () => {
+    ctx.drawImage(entry.img, cx - 20, cy - 12, 40, 24);
+    if (onDone) onDone();
+  };
+  if (entry.loaded) draw();
+  else entry.waiters.push(draw);
+}
+
 function createArmyMarker(provinceName, troops, countryCode) {
   const pos = getProvinceCenter(provinceName);
   if (!pos) return null;
@@ -3604,22 +3627,13 @@ function createArmyMarker(provinceName, troops, countryCode) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, 128, 80);
   const cx = 64, cy = 24;
-  const flagUrl = getFlagUrl(countryCode);
-  if (flagUrl) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      ctx.drawImage(img, cx - 20, cy - 12, 40, 24);
-      flagMat.map.needsUpdate = true;
-    };
-    img.src = flagUrl;
-  }
+  const flagTexture = new THREE.CanvasTexture(canvas);
+  drawFlagToMarker(ctx, getFlagUrl(countryCode), cx, cy, () => { flagTexture.needsUpdate = true; });
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 13px Arial';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
   ctx.fillText(troops >= 1000 ? (troops/1000).toFixed(1)+'k' : troops, cx, cy + 18);
-  const flagTexture = new THREE.CanvasTexture(canvas);
   const flagMat = new THREE.SpriteMaterial({ map: flagTexture, transparent: true, depthTest: true, depthWrite: false });
   const flag = new THREE.Sprite(flagMat);
   flag.position.copy(pos);
