@@ -329,6 +329,8 @@ body{overflow:hidden}
   <button class="map-mode-btn" data-mode="population" title="人口"><span>👥</span><span class="tip">人口地图</span></button>
   <button class="map-mode-btn" data-mode="relations" title="外交"><span>🤝</span><span class="tip">外交地图（对己关系）</span></button>
   <button class="map-mode-btn" data-mode="war" title="战争"><span>🔥</span><span class="tip">战争态势图</span></button>
+  <div style="height:8px"></div>
+  <button class="map-mode-btn" id="style-toggle-btn" title="地图风格"><span>📜</span><span class="tip">切换 卫星/古典地图风格</span></button>
 </div>
 
 <div id="aoh-bottom-panel">
@@ -1156,6 +1158,175 @@ function createAtmosphere() {
   earthGroup.add(outerMesh);
   window.__atmoMats = [innerMat, outerMat];
 }
+// ===== 地图风格系统：卫星 / 古典羊皮纸 =====
+window.__mapStyle = localStorage.getItem('utopia_map_style') || 'satellite';
+function buildParchmentAssets(countries, provinces, colorCanvasRef) {
+  const W = 4096, H = 2048;
+  const toC = (lon, lat) => [(lon + 180) / 360 * W, (90 - lat) / 180 * H];
+  // --- 羊皮纸底图 ---
+  const pc = document.createElement('canvas'); pc.width = W; pc.height = H;
+  const g = pc.getContext('2d');
+  g.fillStyle = '#dcC49a'.toLowerCase();
+  g.fillStyle = '#dcc49a';
+  g.fillRect(0, 0, W, H);
+  // 纸张斑驳：随机大 blotch + 细噪点
+  let s = 777;
+  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < 260; i++) {
+    const x = rnd() * W, y = rnd() * H, r = 40 + rnd() * 220;
+    const grad = g.createRadialGradient(x, y, 0, x, y, r);
+    const dark = rnd() > 0.5;
+    grad.addColorStop(0, dark ? 'rgba(120,90,50,0.055)' : 'rgba(250,238,205,0.07)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+  // 经纬网（15度）
+  g.strokeStyle = 'rgba(90,60,30,0.16)';
+  g.lineWidth = 1;
+  for (let lon = -180; lon <= 180; lon += 15) {
+    const [x] = toC(lon, 0);
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke();
+  }
+  for (let lat = -75; lat <= 75; lat += 15) {
+    const [, y] = toC(0, lat);
+    g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke();
+  }
+  // 海洋波纹线（水平细波浪，仅示意）
+  g.strokeStyle = 'rgba(105,75,40,0.10)';
+  for (let lat = -60; lat <= 60; lat += 6) {
+    const [, y] = toC(0, lat);
+    g.beginPath();
+    for (let x = 0; x <= W; x += 24) {
+      const yy = y + Math.sin(x * 0.02 + lat) * 2.5;
+      if (x === 0) g.moveTo(x, yy); else g.lineTo(x, yy);
+    }
+    g.stroke();
+  }
+  // 罗盘玫瑰（南太平洋 lon-125 lat-40）+ 16 方位辐射线
+  const [rx, ry] = toC(-125, -40);
+  g.strokeStyle = 'rgba(80,50,25,0.5)';
+  g.fillStyle = 'rgba(80,50,25,0.55)';
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2;
+    g.beginPath(); g.moveTo(rx, ry);
+    g.lineTo(rx + Math.cos(a) * 170, ry + Math.sin(a) * 170 * 0.6);
+    g.lineWidth = k % 4 === 0 ? 2 : 0.8;
+    g.stroke();
+  }
+  g.lineWidth = 1.6;
+  g.beginPath(); g.arc(rx, ry, 74, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.arc(rx, ry, 118, 0, Math.PI * 2); g.stroke();
+  // 主指针（四角星）
+  const star = (ang, len, wid) => {
+    g.beginPath();
+    g.moveTo(rx + Math.cos(ang) * len, ry + Math.sin(ang) * len * 0.6);
+    g.lineTo(rx + Math.cos(ang + Math.PI / 2) * wid, ry + Math.sin(ang + Math.PI / 2) * wid * 0.6);
+    g.lineTo(rx - Math.cos(ang) * len * 0.35, ry - Math.sin(ang) * len * 0.35 * 0.6);
+    g.lineTo(rx + Math.cos(ang - Math.PI / 2) * wid, ry + Math.sin(ang - Math.PI / 2) * wid * 0.6);
+    g.closePath(); g.fill();
+  };
+  star(-Math.PI / 2, 96, 13); star(Math.PI / 2, 70, 10); star(0, 70, 10); star(Math.PI, 70, 10);
+  // --- 陆地与海岸墨线（以国家轮廓绘制）---
+  const pathCountry = (ctx, f) => {
+    const drawRing = (ring) => {
+      if (!ring || ring.length < 2) return;
+      const [sx, sy] = toC(ring[0][0], ring[0][1]);
+      ctx.moveTo(sx, sy);
+      for (let i = 1; i < ring.length; i++) {
+        const [px, py] = toC(ring[i][0], ring[i][1]);
+        ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    };
+    ctx.beginPath();
+    if (f.geometry.type === 'Polygon') f.geometry.coordinates.forEach(drawRing);
+    else if (f.geometry.type === 'MultiPolygon') f.geometry.coordinates.forEach(p => p.forEach(drawRing));
+  };
+  g.beginPath();
+  for (const f of countries.features) {
+    if (!f.geometry) continue;
+    pathCountry(g, f);
+  }
+  g.fillStyle = '#ecdcae';
+  g.fill();
+  g.strokeStyle = 'rgba(70,45,22,0.9)';
+  g.lineWidth = 2.6;
+  g.lineJoin = 'round';
+  g.stroke();
+  // 陆地内侧阴影线（快速近似：细描一次偏浅色）
+  g.strokeStyle = 'rgba(140,105,60,0.25)';
+  g.lineWidth = 7;
+  g.stroke();
+  window.__parchmentTexCanvas = pc;
+
+  // --- 羊皮纸领地色底层（政治模式的古典配色）---
+  const pc2 = document.createElement('canvas'); pc2.width = W; pc2.height = H;
+  const g2 = pc2.getContext('2d');
+  g2.drawImage(pc, 0, 0);
+  const parchPalette = {};
+  for (const f of countries.features) {
+    const n = f.properties.NAME || f.properties.name;
+    if (!n) continue;
+    const h = nameHash(n);
+    parchPalette[n] = 'hsla(' + (h % 360) + ',32%,' + (52 + (h >> 3) % 14) + '%,0.55)';
+  }
+  window.__parchmentColorMap = parchPalette;
+  for (const f of countries.features) {
+    const n = f.properties.NAME || f.properties.name;
+    if (!n || n === 'Antarctica' || !f.geometry) continue;
+    pathCountry(g2, f);
+    g2.fillStyle = parchPalette[n] || 'hsla(35,30%,55%,0.5)';
+    g2.fill();
+    g2.strokeStyle = 'rgba(70,45,22,0.8)';
+    g2.lineWidth = 1.8;
+    g2.stroke();
+  }
+  window.__parchmentBaseCanvas = pc2;
+  window.__mapStyleReady = true;
+  applyMapStyle(window.__mapStyle, true);
+}
+
+function applyMapStyle(style, silent) {
+  window.__mapStyle = style;
+  localStorage.setItem('utopia_map_style', style);
+  const mat = window.__earthMatRef;
+  if (!mat || !window.__parchmentTexCanvas) return;
+  if (style === 'parchment') {
+    if (!mat.userData.__satTex) mat.userData.__satTex = mat.map;
+    if (!window.__parchmentThreeTex) {
+      const t = new THREE.CanvasTexture(window.__parchmentTexCanvas);
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 8;
+      window.__parchmentThreeTex = t;
+    }
+    mat.map = window.__parchmentThreeTex;
+    if (!mat.userData.__satBump) mat.userData.__satBump = mat.bumpMap;
+    mat.bumpMap = null;
+    mat.emissiveIntensity = 0;
+    mat.needsUpdate = true;
+    ambientLight.intensity = 1.55;
+    sunLight.intensity = 0.5;
+    if (window.__cloudMat) window.__cloudMat.opacity = 0;
+    if (window.__provinceBorderMat) window.__provinceBorderMat.color.setHex(0x6b4423);
+    document.body.classList.add('theme-parchment');
+  } else {
+    if (mat.userData.__satTex) mat.map = mat.userData.__satTex;
+    if (mat.userData.__satBump) mat.bumpMap = mat.userData.__satBump;
+    mat.emissiveIntensity = 1.35;
+    mat.needsUpdate = true;
+    ambientLight.intensity = 0.34;
+    sunLight.intensity = 2.3;
+    if (window.__provinceBorderMat) window.__provinceBorderMat.color.setHex(0xffffff);
+    document.body.classList.remove('theme-parchment');
+  }
+  // 领地重绘用对应底图
+  aohRepaintTerritoryColors();
+  if (!silent) aohNotify(style === 'parchment' ? '📜 古典地图风格' : '🛰 卫星地图风格');
+  const btn = document.getElementById('style-toggle-btn');
+  if (btn) btn.textContent = style === 'parchment' ? '🛰' : '📜';
+}
+
 createAtmosphere();
 
 const earthGeo = new THREE.SphereGeometry(1, 128, 128);
@@ -1394,6 +1565,9 @@ function createBorderOverlay() {
     baseCanvas.getContext('2d').drawImage(colorCanvas, 0, 0);
     window.__baseColorCanvas = baseCanvas;
 
+    // ===== 古典羊皮纸风格资产（地图风格切换用）=====
+    buildParchmentAssets(countries, provinces, colorCtx.canvas);
+
     // 暴露给全局：宣战/占领后重绘领土颜色需要
     window.__colorCanvas = colorCanvas;
     window.__colorCtx = colorCtx;
@@ -1578,6 +1752,8 @@ function createBorderOverlay() {
     if (oldP) earthGroup.remove(oldP);
     earthGroup.add(provinceSphere);
     window.__provinceBorderMat = provinceMat;
+    // 球体就绪后再次套用保存的地图风格（羊皮纸模式需要换材质与重绘）
+    if (window.__mapStyleReady) applyMapStyle(window.__mapStyle, true);
 
     const oldLabels = earthGroup.getObjectByName('labels');
     if (oldLabels) earthGroup.remove(oldLabels);
@@ -3273,12 +3449,17 @@ document.getElementById('bp-officer').addEventListener('click', () => {
 });
 
 document.querySelectorAll('.map-mode-btn').forEach(btn => {
+  if (btn.id === 'style-toggle-btn') return;
   btn.addEventListener('click', () => {
     if (gameState !== 'playing') return;
-    document.querySelectorAll('.map-mode-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.map-mode-btn').forEach(b => { if (b.id !== 'style-toggle-btn') b.classList.remove('active'); });
     btn.classList.add('active');
     setMapMode(btn.dataset.mode);
   });
+});
+document.getElementById('style-toggle-btn').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  applyMapStyle(window.__mapStyle === 'parchment' ? 'satellite' : 'parchment');
 });
 
 document.getElementById('sb-tech').addEventListener('click', () => {
@@ -3412,11 +3593,12 @@ function aohInitTerritoryOwnership(playerCountry) {
 function aohRepaintTerritoryColors() {
   const canvas = window.__colorCanvas;
   const ctx = window.__colorCtx;
-  const base = window.__baseColorCanvas;
+  const parchment = window.__mapStyle === 'parchment' && window.__parchmentBaseCanvas;
+  const base = parchment ? window.__parchmentBaseCanvas : window.__baseColorCanvas;
   if (!canvas || !ctx || !base) return;
   const toCanvas = window.__toCanvasFn;
   const w = canvas.width, h = canvas.height;
-  const colorMap = window.__countryColorMap || {};
+  const colorMap = parchment ? (window.__parchmentColorMap || {}) : (window.__countryColorMap || {});
 
   // 1) 快速恢复基础国家色（drawImage 走 GPU，比重画 241 个国家快得多）
   ctx.clearRect(0, 0, w, h);
