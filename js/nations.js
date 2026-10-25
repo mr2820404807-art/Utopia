@@ -2,7 +2,7 @@
 // 乌托邦 · 一期改造
 import { gdpMap, popMap, nameHash, dataKey } from './data.js';
 import {
-  aohRes, armies, nations, wars, battles, relations, alliances, gameCtx, relKey, provinceData,
+  aohRes, armies, nations, wars, battles, relations, alliances, gameCtx, relKey, provinceData, provinceUnrest,
   clearObj, UI, registerSave,
 } from './state.js';
 
@@ -166,6 +166,10 @@ export function transferProvince(province, newOwner) {
   // 战争创伤：经济与人口受损
   const pd = provinceData[province];
   if (pd) { pd.economy = Math.max(5, pd.economy * 0.88); pd.population = Math.round(pd.population * 0.93); }
+  // 占领区动荡（参照文明时代3 unrest）：新占领 40 点起步，归还原主则清零
+  const origAdmin = window.__origAdminMap ? window.__origAdminMap[province] : '';
+  if (newOwner === origAdmin) delete provinceUnrest[province];
+  else provinceUnrest[province] = Math.max(provinceUnrest[province] || 0, 40);
   UI.repaintTerritory();
   // 灭国检查
   if (pn && pn.provinces.size === 0 && pn.alive) {

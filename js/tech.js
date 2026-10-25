@@ -1,6 +1,10 @@
 // ===== 科技树：4 方向 26 项，前置解锁，效果进入 playerMods =====
 // 乌托邦 · 一期改造
-import { aohRes, techProgress, aohTechBonuses, playerMods, onDay, UI } from './state.js';
+import { aohRes, techProgress, aohTechBonuses, playerMods, playerPolicy, onDay, UI } from './state.js';
+
+// 科研政策效果（参照 GV_Budget RESEARCH_LEVEL：低速省费/高速费）
+const RESEARCH_SPEED = [-0.5, 0, 0.25];
+const RESEARCH_COST = [-0.3, 0, 0.5];
 
 export const TECH_BRANCHES = [
   { id: 'eco', name: '经济', icon: '💰', color: '#7fd488' },
@@ -61,8 +65,9 @@ export function startResearch(id) {
   if (techProgress[id] === 'done' || techProgress[id] === 'researching') return { ok: false, msg: '不可重复研究' };
   if (!techUnlocked(t)) return { ok: false, msg: '前置科技未完成' };
   if (researchingCount() >= researchSlots()) return { ok: false, msg: '研究槽已满' };
-  if (aohRes.gold < t.cost) return { ok: false, msg: '金币不足' };
-  aohRes.gold -= t.cost;
+  const cost = Math.round(t.cost * (1 + RESEARCH_COST[playerPolicy.research + 1]));
+  if (aohRes.gold < cost) return { ok: false, msg: '金币不足' };
+  aohRes.gold -= cost;
   techProgress[id] = 'researching';
   aohTechBonuses[id] = { days: 0 };
   UI.notify(`🔬 开始研究：${t.name}`);
@@ -90,10 +95,11 @@ export function reapplyAllTechs() {
 
 function dailyTech() {
   let finished = false;
+  const policySpeed = 1 + RESEARCH_SPEED[playerPolicy.research + 1];
   for (const t of techDefs) {
     if (techProgress[t.id] !== 'researching') continue;
     const b = aohTechBonuses[t.id] || (aohTechBonuses[t.id] = { days: 0 });
-    b.days += 1 + playerMods.research; // 研究速度加成
+    b.days += (1 + playerMods.research) * policySpeed; // 研究速度加成 × 科研政策
     if (b.days >= t.days) {
       techProgress[t.id] = 'done';
       delete aohTechBonuses[t.id];

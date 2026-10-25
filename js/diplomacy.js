@@ -298,6 +298,22 @@ function dailyDiplomacy(today) {
   }
   // 世界紧张度衰减
   gameCtx.worldTension = Math.max(0, gameCtx.worldTension - 0.15);
+
+  // 附庸独立欲望（参照 GV_Vassals LIBERTY_DESIRE：满 100 宣布独立）
+  for (const n of Object.values(nations)) {
+    if (!n.overlord || !n.alive) continue;
+    const lord = nations[n.overlord];
+    if (!lord || !lord.alive) { n.overlord = null; continue; }
+    n.liberty = (n.liberty || 0) + 0.25 + (getRelation(n.overlord, n.name) < 0 ? 0.15 : 0);
+    if (n.liberty >= 100) {
+      const vassal = n.name, lordName = n.overlord;
+      n.overlord = null;
+      n.liberty = 0;
+      addRelation(vassal, lordName, -50);
+      setTruce(vassal, lordName, today, 2);
+      UI.notify(`📢 ${UI.cn(vassal)} 摆脱了 ${UI.cn(lordName)} 的控制，宣布独立！`);
+    }
+  }
 }
 function avgWeariness(names) {
   const live = names.filter(n => nations[n] && nations[n].alive);

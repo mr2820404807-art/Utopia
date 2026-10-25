@@ -3,10 +3,27 @@
 import { lonLatDist, nameHash, coastalCountries } from './data.js';
 import {
   armies, battles, nations, wars, provinceData, provinceAdj, seaAdj, provinceCenter,
-  officerPool, playerMods, clearObj, onDay, UI, registerSave,
+  officerPool, playerMods, sieges, clearObj, onDay, UI, registerSave,
 } from './state.js';
 import { transferProvince, endBattle } from './nations.js';
 import { isAtWar, warEvent } from './diplomacy.js';
+
+// 军官战斗经验（参照 GV_Generals：参战+经验、胜战加成，每100点随机涨一项属性）
+function grantOfficerXP(officerId, xp) {
+  if (!officerId) return;
+  const off = officerPool.find(o => o.id === officerId);
+  if (!off) return;
+  off.xp = (off.xp || 0) + xp;
+  while (off.xp >= 100) {
+    off.xp -= 100;
+    const stats = Object.keys(off.stats);
+    const pick = stats[Math.floor(Math.random() * stats.length)];
+    if (off.stats[pick] < 15) {
+      off.stats[pick]++;
+      if (off.name) UI.notify(`🎖️ ${off.name} 历战成长：${ { attack: '进攻', defense: '防御', mobility: '机动', siege: '围攻', command: '指挥' }[pick] } +1`);
+    }
+  }
+}
 
 // ---------- 邻接图 ----------
 let adminIndex = null;
@@ -188,10 +205,28 @@ function mergeArmy(province, arriving) {
 
 function arriveOccupy(province, attacker) {
   const prevOwner = window.__territoryOwner[province];
+  // 要塞未破需先围城（参照 GV_Siege：堡垒等级延长占领）
+  const pd = provinceData[province];
+  const fortLv = pd ? (pd.fortLv || 0) : 0;
+  if (fortLv > 0) {
+    sieges[province] = {
+      attacker: { ...attacker },
+      daysLeft: 2 + fortLv * 2,
+    };
+    if (attacker.owner === window.__ownCountry) {
+      UI.notify(`🏰 ${UI.cn(province)} 堡垒未克，转入围城（约 ${sieges[province].daysLeft} 天）`);
+    }
+    return;
+  }
+  finishOccupy(province, attacker, prevOwner);
+}
+
+function finishOccupy(province, attacker, prevOwner) {
   transferProvince(province, attacker.owner);
   armies[province] = { owner: attacker.owner, troops: attacker.troops, officerId: attacker.officerId || null };
   UI.updateArmyMarker(province, attacker.troops, attacker.owner);
   warEvent({ type: 'occupied', province, winner: attacker.owner, loser: prevOwner });
+  grantOfficerXP(attacker.officerId, 40 + Math.round(Math.random() * 40));
   if (attacker.owner === window.__ownCountry) {
     UI.notify(`🏁 占领 ${UI.cn(province)}！`);
   }
@@ -251,8 +286,9 @@ function dailyBattles() {
     const atkPower = b.attacker.troops
       * (1 + atkNat.milTech * 0.05 + officerBonus(b.attacker.officerId, 'attack') + (isPlayerAtk ? playerMods.atk : 0))
       * (0.85 + Math.random() * 0.3);
+    const fortDef = (provDef ? (provDef.fortLv || 0) * 0.10 : 0);
     const defPower = def.troops
-      * (1.25 + defNat.milTech * 0.05 + officerBonus(def.officerId, 'defense') + ((provDef ? provDef.barrackLv : 0) * 0.04) + (isPlayerDef ? playerMods.def : 0))
+      * (1.25 + defNat.milTech * 0.05 + officerBonus(def.officerId, 'defense') + ((provDef ? provDef.barrackLv : 0) * 0.04) + fortDef + (isPlayerDef ? playerMods.def : 0))
       * (0.85 + Math.random() * 0.3);
 
     // 按比例日损耗：优势越大，结束越快（悬殊 2~3 天，势均力敌 ~6 天）
@@ -275,6 +311,8 @@ function dailyBattles() {
       arriveOccupy(prov, { ...b.attacker, troops: survivors });
       if (def.officerId) killOfficer(def.officerId);
       warEvent({ type: 'battleWon', province: prov, winner: b.attacker.owner, loser: defOwner });
+      grantOfficerXP(b.attacker.officerId, 25 + b.day * 6);
+      grantOfficerXP(def.officerId, 12);
       endBattle(prov);
       continue;
     }
@@ -282,6 +320,8 @@ function dailyBattles() {
       const survivors = b.attacker.troops;
       if (b.attacker.officerId && Math.random() < 0.3) killOfficer(b.attacker.officerId);
       warEvent({ type: 'battleWon', province: prov, winner: defOwner, loser: b.attacker.owner });
+      grantOfficerXP(def.officerId, 25 + b.day * 6);
+      grantOfficerXP(b.attacker.officerId, 12);
       if (isPlayerAtk) {
         UI.notify(`💔 对 ${UI.cn(prov)} 的攻势失败（第${b.day}天），残部 ${survivors} 人撤退`);
       } else if (isPlayerDef) {
@@ -291,7 +331,37 @@ function dailyBattles() {
       endBattle(prov);
       continue;
     }
+    // 参战军官日常经验
+    grantOfficerXP(b.attacker.officerId, 4);
+    grantOfficerXP(def.officerId, 4);
     updateBattleMarker(b);
+  }
+
+  // ---- 围城结算（要塞）----
+  for (const prov of Object.keys(sieges)) {
+    const s = sieges[prov];
+    const def = armies[prov];
+    const provOwner = window.__territoryOwner[prov];
+    // 守军回防：围城转为野战
+    if (def && def.troops > 0 && def.owner !== s.attacker.owner) {
+      delete sieges[prov];
+      startBattle(prov, s.attacker);
+      continue;
+    }
+    // 已停战/攻方灭亡：围城解除
+    if (!isAtWar(s.attacker.owner, provOwner) || !nations[s.attacker.owner] || !nations[s.attacker.owner].alive) {
+      retreat({ attacker: s.attacker, province: prov }, s.attacker.troops);
+      delete sieges[prov];
+      continue;
+    }
+    s.daysLeft--;
+    if ((s.attacker.owner === window.__ownCountry || provOwner === window.__ownCountry) && s.daysLeft % 5 === 0) {
+      UI.notify(`🏰 ${UI.cn(prov)} 围城中，还剩 ${s.daysLeft} 天`);
+    }
+    if (s.daysLeft <= 0) {
+      delete sieges[prov];
+      finishOccupy(prov, s.attacker, provOwner);
+    }
   }
   UI.refreshWarPanel();
 }

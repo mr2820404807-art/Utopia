@@ -30,6 +30,7 @@ export const aohRes = {
 // ---- 玩家科技修正（由 tech.js 累积，战斗/经济读取）----
 export const playerMods = {
   atk: 0, def: 0, income: 0, build: 0, research: 0, growth: 0, recruit: 0, missile: 0,
+  manpowerRegen: 0, diploGain: 0, upkeep: 0,
 };
 
 // ---- 军队：省份 -> { owner, troops, officerId? } ----
@@ -50,6 +51,17 @@ export const officerPool = [];
 
 // ---- 国家级标记 ----
 export const countryFlags = {};
+
+// ---- 预算政策（-1低 / 0中 / 1高，参照文明时代3 GV_Budget 三滑杆）----
+export const playerPolicy = { tax: 0, research: 0, military: 0 };
+// ---- 贷款（参照 GV_Loan：上限5笔、3.75%利息、10年分期）----
+export const playerLoans = [];   // {principal, dailyPay, daysLeft}
+// ---- 占领区动荡度（参照 GV_Rebels 的 unrest，满100触发起义）----
+export const provinceUnrest = {};   // pname -> 0..100
+// ---- 围城（参照 GV_Siege：堡垒等级延长占领时间）----
+export const sieges = {};   // pname -> {attacker:{owner,troops,officerId}, daysLeft}
+// ---- 法律（ enacted lawId -> true ）----
+export const playerLaws = {};
 
 // ---- 新系统状态 ----
 export const nations = {};        // name -> nation 对象（玩家为代理对象）
@@ -116,6 +128,8 @@ export function resetAllState() {
     population: 100000, growth: 1.2, war: 0, missiles: 0,
   });
   Object.keys(playerMods).forEach(k => playerMods[k] = 0);
+  playerPolicy.tax = 0; playerPolicy.research = 0; playerPolicy.military = 0;
+  clearArray(playerLoans); clearObj(provinceUnrest); clearObj(sieges); clearObj(playerLaws);
   clearObj(armies); clearObj(provinceData); clearObj(buildingQueue);
   clearObj(techProgress); clearObj(aohTechBonuses);
   clearArray(officerPool); clearObj(countryFlags);
@@ -125,6 +139,25 @@ export function resetAllState() {
   gameCtx.totalProvinces = 0; gameCtx.ended = false; gameCtx.playerDead = false; gameCtx.worldTension = 0;
   clearObj(provinceAdj); clearObj(seaAdj); clearObj(provinceCenter);
 }
+
+// ---- 预算/贷款/动荡/围城/法律 存档分节 ----
+registerSave('policies',
+  () => ({
+    policy: { ...playerPolicy },
+    loans: playerLoans.map(l => ({ ...l })),
+    unrest: { ...provinceUnrest },
+    laws: { ...playerLaws },
+  }),
+  (data) => {
+    playerPolicy.tax = 0; playerPolicy.research = 0; playerPolicy.military = 0;
+    clearArray(playerLoans); clearObj(provinceUnrest); clearObj(sieges); clearObj(playerLaws);
+    if (!data) return;
+    Object.assign(playerPolicy, data.policy || {});
+    (data.loans || []).forEach(l => playerLoans.push(l));
+    Object.assign(provinceUnrest, data.unrest || {});
+    Object.assign(playerLaws, data.laws || {});
+    // 围城状态不存档：读档后围城重置（进攻方部队已在目标省驻扎模型外，直接按占领处理）
+  });
 
 // ---- 关系键工具 ----
 export function relKey(a, b) { return a < b ? a + '|' + b : b + '|' + a; }
