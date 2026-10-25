@@ -143,16 +143,20 @@ canvas{display:block}
 .save-row .save-btn.load:hover{background:rgba(40,90,50,.6)}
 .save-row .save-btn.del{border-color:rgba(255,110,90,.35);color:#dd9988}
 .save-row .save-btn.del:hover{background:rgba(90,35,25,.6)}
-.aoh-popup .tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.aoh-popup .tech-card{padding:10px;border:1px solid rgba(80,120,200,.2);border-radius:8px;background:rgba(20,28,50,.5);cursor:pointer;transition:all .2s}
+.aoh-popup .tech-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-height:64vh;overflow-y:auto;padding:4px}
+.aoh-popup .tech-branch{display:flex;flex-direction:column;gap:6px}
+.aoh-popup .tech-branch-title{font-size:13px;font-weight:700;letter-spacing:2px;padding:4px 2px;border-bottom:1px solid rgba(80,120,200,.25);margin-bottom:2px}
+.aoh-popup .tech-card{padding:8px;border:1px solid rgba(80,120,200,.2);border-left:3px solid #8db4d8;border-radius:8px;background:rgba(20,28,50,.5);cursor:pointer;transition:all .2s}
 .aoh-popup .tech-card:hover{border-color:rgba(100,180,255,.5);background:rgba(30,45,80,.6)}
-.aoh-popup .tech-card.researched{border-color:rgba(80,200,120,.4);background:rgba(20,50,30,.4)}
-.aoh-popup .tech-card.researching{border-color:rgba(255,200,60,.5);background:rgba(50,40,20,.4)}
-.aoh-popup .tech-card .tech-name{font-size:13px;font-weight:600;color:#dde;margin-bottom:4px}
+.aoh-popup .tech-card.researched{border-color:rgba(80,200,120,.4);background:rgba(20,50,30,.4);cursor:default;opacity:.85}
+.aoh-popup .tech-card.researching{border-color:rgba(255,200,60,.5);background:rgba(50,40,20,.4);cursor:default}
+.aoh-popup .tech-card.locked{opacity:.45;cursor:default}
+.aoh-popup .tech-card .tech-name{font-size:12px;font-weight:600;color:#dde;margin-bottom:3px}
 .aoh-popup .tech-card .tech-desc{font-size:10px;color:#7788aa;line-height:1.4}
 .aoh-popup .tech-card .tech-cost{font-size:10px;color:#ffd877;margin-top:4px}
 .aoh-popup .tech-card .tech-progress{height:3px;background:rgba(80,120,200,.2);border-radius:2px;margin-top:4px;overflow:hidden}
 .aoh-popup .tech-card .tech-progress-bar{height:100%;background:linear-gradient(90deg,#ffd877,#ffaa44);border-radius:2px;transition:width .3s}
+@media (max-width:900px){.aoh-popup .tech-grid{grid-template-columns:1fr 1fr}}
 
 /* ===== 移动端横屏适配 ===== */
 /* 手机/平板横屏：缩小关键 UI，适配矮宽屏幕 */
@@ -246,7 +250,7 @@ body{overflow:hidden}
   <div class="bar-sep"></div>
   <div class="bar-res" id="res-population"><span class="res-icon">🏘</span><span class="res-val" id="val-population">0</span><span class="tip">人口 - 国家总人口</span></div>
   <div class="bar-res" id="res-growth"><span class="res-icon">📈</span><span class="res-val" id="val-growth">+0%</span><span class="tip">增长率 - 受经济影响</span></div>
-  <div class="bar-res" id="res-war"><span class="res-icon">⚔</span><span class="res-val" id="val-war">和平</span><span class="tip">战争状态</span></div>
+  <div class="bar-res" id="res-war"><span class="res-icon">⚔</span><span class="res-val" id="val-war">100%</span><span class="tip">战争支持度（低于25%时军队士气崩溃）</span></div>
   <div class="bar-sep"></div>
   <div class="bar-res clickable" id="res-missile"><span class="res-icon">🚀</span><span class="res-val" id="val-missile">0</span><span class="tip">弹道导弹</span></div>
   <div id="bar-time">
@@ -260,15 +264,11 @@ body{overflow:hidden}
 
 <div id="aoh-left-sidebar">
   <button class="map-mode-btn active" data-mode="political" title="政治"><span>🗺</span><span class="tip">政治地图</span></button>
-  <button class="map-mode-btn" data-mode="terrain" title="地形"><span>⛰</span><span class="tip">地形地图</span></button>
+  <button class="map-mode-btn" data-mode="military" title="军事"><span>⚔</span><span class="tip">军事地图（驻军热度）</span></button>
   <button class="map-mode-btn" data-mode="economy" title="经济"><span>💰</span><span class="tip">经济地图</span></button>
   <button class="map-mode-btn" data-mode="population" title="人口"><span>👥</span><span class="tip">人口地图</span></button>
-  <button class="map-mode-btn" data-mode="diplomacy" title="外交"><span>🤝</span><span class="tip">外交地图</span></button>
-  <button class="map-mode-btn" data-mode="religion" title="宗教"><span>⛪</span><span class="tip">宗教地图</span></button>
-  <button class="map-mode-btn" data-mode="culture" title="文化"><span>🎭</span><span class="tip">文化地图</span></button>
-  <button class="map-mode-btn" data-mode="trade" title="贸易"><span>🚢</span><span class="tip">贸易地图</span></button>
-  <button class="map-mode-btn" data-mode="military" title="军事"><span>⚔</span><span class="tip">军事地图</span></button>
-  <button class="map-mode-btn" data-mode="ideology" title="意识形态"><span>🏴</span><span class="tip">意识形态</span></button>
+  <button class="map-mode-btn" data-mode="relations" title="外交"><span>🤝</span><span class="tip">外交地图（对己关系）</span></button>
+  <button class="map-mode-btn" data-mode="war" title="战争"><span>🔥</span><span class="tip">战争态势图</span></button>
 </div>
 
 <div id="aoh-bottom-panel">
@@ -329,6 +329,13 @@ body{overflow:hidden}
   </div>
 </div>
 
+<div class="aoh-popup-overlay" id="war-popup">
+  <div class="aoh-popup" style="min-width:520px">
+    <div class="popup-title">战争总览<button class="popup-close" data-close="war-popup">✕</button></div>
+    <div id="war-grid" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
+
 <div id="select-box"></div>
 <div id="pause-indicator">已 暂 停</div>
 
@@ -357,6 +364,7 @@ body{overflow:hidden}
   <button class="ap-btn" id="army-btn-merge">合并</button>
 </div>
 <div id="loading">加载高清贴图中...</div>
+<div id="js-error-box" style="position:fixed;left:8px;bottom:8px;z-index:99999;max-width:60vw;background:rgba(120,10,10,.92);color:#fdd;border-radius:6px;padding:6px 10px;font:11px/1.5 Consolas,monospace;display:none;pointer-events:none;white-space:pre-wrap"></div>
 
 <script type="importmap">
 {
@@ -367,13 +375,254 @@ body{overflow:hidden}
 }
 </script>
 <script type="module">
-window.addEventListener('error', (e) => { document.title = 'ERR:' + e.message + ' L' + e.lineno; document.body.innerHTML = '<pre style="background:#000;color:#f44;padding:20px;font-size:14px;position:fixed;inset:0;z-index:99999;overflow:auto;">ERROR: ' + e.message + '\nLine: ' + e.lineno + '\nCol: ' + e.colno + '\nFile: ' + e.filename + '</pre>'; });
-window.addEventListener('unhandledrejection', (e) => { document.title = 'PROMISE ERR'; document.body.innerHTML = '<pre style="background:#000;color:#f44;padding:20px;font-size:14px;position:fixed;inset:0;z-index:99999;overflow:auto;">PROMISE ERROR: ' + (e.reason?.message || e.reason) + '</pre>'; });
+// 错误上报：不再销毁整个页面（游戏不应因单个异常而白屏），改为角落悬浮报错
+window.addEventListener('error', (e) => {
+  document.title = 'ERR:' + e.message + ' L' + e.lineno;
+  console.error('[page-error]', e.message, e.filename, 'L' + e.lineno);
+  const box = document.getElementById('js-error-box');
+  if (box) { box.style.display = 'block'; box.textContent = 'ERROR: ' + e.message + ' @L' + e.lineno + ' ' + (e.filename || '').split('/').pop(); }
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('[promise-error]', e.reason);
+  const box = document.getElementById('js-error-box');
+  if (box) box.textContent = 'PROMISE: ' + (e.reason?.message || e.reason);
+});
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+// ===== 游戏系统模块（一期改造：文明时代3式玩法）=====
+import { nameHash, coastalCountries, gdpMap, popMap } from './js/data.js';
+import {
+  UI, aohRes, playerMods, armies, provinceData, buildingQueue, techProgress, aohTechBonuses,
+  officerPool, countryFlags, nations, wars, battles, justifying, gameCtx,
+  provinceAdj, seaAdj, resetAllState, runTicks, runDay, saveAllSections, loadAllSections, getRelation, addRelation, alliances,
+} from './js/state.js';
+import { initNations, transferProvince, playerNation, nationPower } from './js/nations.js';
+import { buildAdjacency, findPathDays, onArmyArrive } from './js/combat.js';
+import {
+  declareWar, isAtWar, peaceOptions, aiAcceptPeace, makePeace,
+  startJustify, isJustified, formAlliance, canAlly, sideOf,
+} from './js/diplomacy.js';
+import {
+  TECH_BRANCHES, techDefs as techTreeDefs, startResearch, researchSlots, researchingCount,
+  techById, techUnlocked, reapplyAllTechs,
+} from './js/tech.js';
+import { setMapMode, repaintMap, currentMapMode, MAP_MODES } from './js/mapmodes.js';
+import './js/economy.js';
+import './js/ai.js';
+import './js/victory.js';
+
+// ===== UI 桥：把渲染层能力注入系统模块（模块只通过 UI.* 触碰渲染）=====
+let territoryDirty = false, lastTerritoryRepaint = 0;
+function scheduleTerritoryRepaint() { territoryDirty = true; }
+function flushTerritoryRepaint(now) {
+  if (!territoryDirty || now - lastTerritoryRepaint < 600) return;
+  territoryDirty = false; lastTerritoryRepaint = now;
+  if (currentMapMode() === 'political') aohRepaintTerritoryColors();
+  else repaintMap();
+}
+
+function paintProvincesByCB(cb) {
+  const canvas = window.__colorCanvas, ctx = window.__colorCtx, toCanvas = window.__toCanvasFn;
+  if (!canvas || !ctx || !window.__provincesGeoJSON) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(10,14,26,0.92)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const f of window.__provincesGeoJSON.features) {
+    if (!f.properties.name) continue;
+    const c = cb(f.properties.name);
+    if (c) fillFeature(f, c, ctx, toCanvas, canvas.width, canvas.height);
+  }
+  if (window.__colorSphereMat && window.__colorSphereMat.map) window.__colorSphereMat.map.needsUpdate = true;
+}
+function paintCountriesByCB(cb) {
+  const canvas = window.__colorCanvas, ctx = window.__colorCtx, toCanvas = window.__toCanvasFn;
+  if (!canvas || !ctx || !window.__countriesGeoJSON) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'rgba(10,14,26,0.92)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const f of window.__countriesGeoJSON.features) {
+    const name = f.properties.NAME || f.properties.name;
+    if (!name) continue;
+    const c = cb(name);
+    if (c) fillFeature(f, c, ctx, toCanvas, canvas.width, canvas.height);
+  }
+  if (window.__colorSphereMat && window.__colorSphereMat.map) window.__colorSphereMat.map.needsUpdate = true;
+}
+
+function makeBattleMarkerImpl(province, txt) {
+  const pos = getProvinceCenter(province);
+  if (!pos) return { update() {}, remove() {} };
+  const canvas = document.createElement('canvas');
+  canvas.width = 200; canvas.height = 72;
+  const ctx = canvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(canvas);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(0.034, 0.012, 1);
+  sp.position.copy(pos.clone().normalize().multiplyScalar(1.03));
+  armyMarkers.add(sp);
+  const marker = {
+    update(t) {
+      ctx.clearRect(0, 0, 200, 72);
+      ctx.fillStyle = 'rgba(60,10,10,0.75)';
+      ctx.beginPath(); ctx.roundRect(6, 14, 188, 44, 8); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,90,70,0.8)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#ff8877';
+      ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('⚔ ' + t, 100, 36);
+      tex.needsUpdate = true;
+    },
+    remove() { try { armyMarkers.remove(sp); } catch (e) {} },
+  };
+  marker.update(txt);
+  return marker;
+}
+
+Object.assign(UI, {
+  notify: (m) => aohNotify(m),
+  repaintTerritory: scheduleTerritoryRepaint,
+  updateArmyMarker: (p, t, o) => updateArmyMarker(p, t, o),
+  moveArmy: gameMoveArmy,
+  getProvinceCenter: (p) => getProvinceCenter(p),
+  getFlagUrl: (n) => getFlagUrl(n),
+  cn: (n) => (window.__chineseNames && window.__chineseNames[n]) || n,
+  updateResources: () => aohUpdateResources(),
+  openPeaceOffer: openPeaceOfferImpl,
+  battleFx: (p) => aohExplosionEffect(p),
+  explosion: (p) => aohExplosionEffect(p),
+  refreshWarPanel: refreshWarPanelImpl,
+  refreshDiploPanel: refreshDiploPanelImpl,
+  makeBattleMarker: makeBattleMarkerImpl,
+  showEndScreen: showEndScreenImpl,
+  repaintBase: () => aohRepaintTerritoryColors(),
+  paintProvinces: paintProvincesByCB,
+  paintCountries: paintCountriesByCB,
+});
+
+// 统一的发兵入口（玩家点击与 AI 调动共用）
+function gameMoveArmy(o) {
+  const g = armies[o.from];
+  if (!g || g.owner !== o.owner) return;
+  const send = Math.max(0, Math.min(o.troops != null ? o.troops : g.troops, g.troops));
+  if (send <= 0) return;
+  const officerId = o.officerId || g.officerId || null;
+  g.troops -= send;
+  if (g.troops <= 0) { delete armies[o.from]; updateArmyMarker(o.from, 0, o.owner); }
+  else updateArmyMarker(o.from, g.troops, o.owner);
+
+  const isPlayerOwner = o.owner === (confirmedCountry?.enName || window.__ownCountry);
+  const res = findPathDays(o.from, o.to);
+  if (res && res.path.length >= 2) {
+    if (isPlayerOwner) { clearArmyTrails(); drawArmyTrail(res.path); }
+    animateArmyPath(res.path, send, o.owner, res.days, !!o.invade, { fromName: o.from, officerId });
+    if (!o.silent && isPlayerOwner) {
+      const totalDays = res.days.reduce((s, d) => s + d, 0);
+      aohNotify(`🚩 军队出发：${UI.cn(o.from)} → ${UI.cn(o.to)}（约${totalDays}天）`);
+    }
+  } else if (o.invade) {
+    // 陆海均不通：空降入侵（3天）
+    animateArmyPath([o.from, o.to], send, o.owner, 3, true, { fromName: o.from, officerId });
+    if (!o.silent && isPlayerOwner) aohNotify(`🪂 空降部队出发：${UI.cn(o.from)} → ${UI.cn(o.to)}（3天）`);
+  } else {
+    // 调动失败：部队原地归建
+    onArmyArrive({ province: o.from, owner: o.owner, troops: send, origin: o.from, officerId });
+    if (!o.silent && isPlayerOwner) aohNotify('未找到可用路线，军队留在原地');
+  }
+}
+
+// 玩家军队行动（移动/入侵统一入口）：目标为敌方时需处于战争状态
+function playerArmyAction(fromProv, toProv) {
+  const me = confirmedCountry?.enName || window.__ownCountry;
+  const g = armies[fromProv];
+  if (!g || g.owner !== me || g.troops <= 0) {
+    aohNotify('请先点击你自己有驻军的省份作为出兵点');
+    return false;
+  }
+  const targetOwner = (window.__territoryOwner && window.__territoryOwner[toProv]) || toProv;
+  let invade = false;
+  if (targetOwner !== me) {
+    if (isAtWar(me, targetOwner)) {
+      invade = true;
+    } else {
+      aohNotify(`与 ${UI.cn(targetOwner)} 未处于战争状态，无法进军（先在外交面板或敌国省份宣战）`);
+      return false;
+    }
+  }
+  gameMoveArmy({ from: fromProv, to: toProv, owner: me, troops: g.troops, invade });
+  return true;
+}
+
+// AI 求和弹窗
+function openPeaceOfferImpl(war) {
+  if (gameState !== 'playing') return;
+  const me = window.__ownCountry;
+  const mySide = sideOf(war, me);
+  const enemies = (mySide === 'atk' ? war.defenders : war.attackers).map(n => UI.cn(n)).join('、');
+  const overlay = document.createElement('div');
+  overlay.className = 'aoh-popup-overlay';
+  overlay.style.cssText = 'z-index:600';
+  overlay.innerHTML = `
+    <div class="aoh-popup" style="min-width:400px">
+      <div class="popup-title">🕊️ 敌方求和<button class="popup-close" id="po-close">✕</button></div>
+      <div style="padding:6px 2px;color:#bbd;font-size:13px;line-height:1.8">
+        ${enemies} 派来使者请求停战（白和平）。<br>
+        <span style="color:#889;font-size:11px">当前战争分数：我方 ${war.score[mySide]} : ${war.score[mySide === 'atk' ? 'def' : 'atk']} 敌方</span>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button id="po-accept" style="flex:1;padding:10px;border:1px solid rgba(100,220,140,.4);border-radius:8px;background:rgba(20,60,35,.5);color:#9fe0b8;cursor:pointer">接受（停战2年）</button>
+        <button id="po-decline" style="flex:1;padding:10px;border:1px solid rgba(220,120,100,.4);border-radius:8px;background:rgba(80,25,18,.5);color:#ff9a88;cursor:pointer">拒绝（继续战争）</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#po-close').onclick = () => overlay.remove();
+  overlay.querySelector('#po-accept').onclick = () => {
+    makePeace(war, mySide, 'white', { y: timeYear, m: timeMonth, d: timeDay });
+    overlay.remove();
+  };
+  overlay.querySelector('#po-decline').onclick = () => {
+    war.playerOffered = false; // 允许敌方稍后再次求和
+    overlay.remove();
+    aohNotify('你拒绝了和平提议，战争继续');
+  };
+}
+
+// 终局画面
+function showEndScreenImpl(r) {
+  setTimeSpeed(0);
+  const overlay = document.createElement('div');
+  overlay.id = 'end-screen';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(0,0,10,.88);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity 1s';
+  const isWin = r.type === 'victory';
+  overlay.innerHTML = `
+    <div style="font-size:64px;margin-bottom:8px">${isWin ? '🏆' : '💀'}</div>
+    <div style="font-size:40px;font-weight:300;color:${isWin ? '#ffd877' : '#ff8877'};letter-spacing:12px;margin-bottom:14px">${r.title}</div>
+    <div style="font-size:14px;color:#aabbcc;margin-bottom:40px">${r.desc}</div>
+    <div style="display:flex;gap:14px">
+      <button id="end-continue" style="width:220px;padding:14px;border:1px solid rgba(100,180,255,.4);border-radius:10px;background:rgba(20,35,60,.7);color:#bbddee;font-size:15px;letter-spacing:3px;cursor:pointer">继续观察世界</button>
+      <button id="end-menu" style="width:220px;padding:14px;border:1px solid rgba(140,190,255,.3);border-radius:10px;background:rgba(10,15,30,.6);color:#889;font-size:15px;letter-spacing:3px;cursor:pointer">返回主菜单</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.style.opacity = '1');
+  overlay.querySelector('#end-continue').onclick = () => { overlay.remove(); setTimeSpeed(1); };
+  overlay.querySelector('#end-menu').onclick = () => {
+    overlay.remove();
+    document.getElementById('pause-overlay').classList.remove('visible');
+    document.getElementById('btn-to-menu').click();
+  };
+}
+
+function refreshWarPanelImpl() {
+  const popup = document.getElementById('war-popup');
+  if (popup && popup.classList.contains('visible')) renderWarPanel();
+}
+function refreshDiploPanelImpl() {
+  const popup = document.getElementById('diplomacy-popup');
+  if (popup && popup.classList.contains('visible')) aohRenderDiplomacy();
+}
 
 let gameState = 'menu';
 let confirmedCountry = null;
@@ -672,7 +921,7 @@ function drawArmyTrail(path) {
   armyTrailGroup.add(new THREE.Line(lineGeo, lineMat));
 }
 
-function animateArmyPath(path, troops, countryCode, daysPerHop, invade) {
+function animateArmyPath(path, troops, countryCode, daysPerHop, invade, meta = {}) {
   const points = [];
   for (const name of path) {
     const pos = getProvinceCenter(name);
@@ -705,16 +954,24 @@ function animateArmyPath(path, troops, countryCode, daysPerHop, invade) {
   armyMarkers.add(sprite);
   lastFrameTime = performance.now();
 
+  // 每跳天数：数组（陆/海混合路径）或统一数值
+  const hopCount = path.length - 1;
+  const segDurs = Array.isArray(daysPerHop)
+    ? daysPerHop.map(d => Math.max(1, d * 8))
+    : new Array(hopCount).fill(Math.max(1, (daysPerHop || 1) * 8));
+
   // 每个动画自带球面路径点（多军队并行移动互不干扰）
-  // seg: 当前段索引, segT: 段内进度 0~1, segDur: 每段所需 tick 数
   armyAnimations.push({
     sprite,
     path: points,
     seg: 0,
     segT: 0,
-    segDur: Math.max(1, (daysPerHop || 1) * 8),
+    segDurs,
     troops,
     toName: path[path.length - 1],
+    fromName: meta.fromName || path[0],
+    ownerCode: countryCode,
+    officerId: meta.officerId || null,
     invade,
   });
 }
@@ -726,7 +983,8 @@ function aohSmoothArmyPositions() {
   const moveSpeed = timeRunning ? SPEED_LEVELS[speedIndex] : 0;
   for (const anim of armyAnimations) {
     if (anim.done || !anim.path || anim.path.length < 2) continue;
-    anim.segT += dt * moveSpeed * (1 / anim.segDur);
+    const segDur = (anim.segDurs && anim.segDurs[anim.seg]) || anim.segDur || 8;
+    anim.segT += dt * moveSpeed * (1 / segDur);
     if (anim.segT >= 1) {
       anim.seg++;
       anim.segT = 0;
@@ -886,7 +1144,9 @@ function createBorderOverlay() {
 
   // 本地 GeoJSON 优先（离线可用、加载快），失败时回退到 CDN
   const localCountriesUrl = 'ne-temp/geojson/ne_50m_admin_0_countries.geojson';
-  const localProvincesUrl = 'ne-temp/geojson/ne_50m_admin_1_states_provinces.geojson';
+  // 省级行政区：优先用精简版 10m 数据（227国全覆盖），回退 50m（仅9国分省）
+  const localProvincesUrl = 'data/provinces_v2.geojson';
+  const localProvincesFallbackUrl = 'ne-temp/geojson/ne_50m_admin_1_states_provinces.geojson';
   const cdnCountriesUrl = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson';
   const cdnProvincesUrl = 'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_1_states_provinces.geojson';
   function fetchGeoJSON(urls) {
@@ -906,7 +1166,7 @@ function createBorderOverlay() {
 
   Promise.all([
     fetchGeoJSON([localCountriesUrl, cdnCountriesUrl]),
-    fetchGeoJSON([localProvincesUrl, cdnProvincesUrl]),
+    fetchGeoJSON([localProvincesUrl, localProvincesFallbackUrl, cdnProvincesUrl]),
   ])
   .then(([countries, provinces]) => {
     function toCanvas(lon, lat, w, h) { return [(lon + 180) / 360 * w, (90 - lat) / 180 * h]; }
@@ -1409,7 +1669,6 @@ function createBorderOverlay() {
     window.__maxLabelArea = maxArea;
     window.__countriesGeoJSON = countries;
     window.__provincesGeoJSON = provinces;
-    buildProvinceAdjacency();
 
     const taiwanCountryFeature = countries.features.find(f => f.properties.NAME === 'Taiwan');
     let taiwanProvinceFeature = provinces.features.find(f => {
@@ -1686,6 +1945,24 @@ function getProvinceAt(lon, lat) {
   if (!geo) return null;
   for (const feature of geo.features) {
     if (!feature.properties.name) continue;
+    let bb = feature.__bbox;
+    if (!bb) {
+      bb = [Infinity, Infinity, -Infinity, -Infinity];
+      const scan = (coords) => {
+        for (const c of coords) {
+          if (Array.isArray(c[0])) scan(c);
+          else {
+            if (c[0] < bb[0]) bb[0] = c[0];
+            if (c[0] > bb[2]) bb[2] = c[0];
+            if (c[1] < bb[1]) bb[1] = c[1];
+            if (c[1] > bb[3]) bb[3] = c[1];
+          }
+        }
+      };
+      scan(feature.geometry ? feature.geometry.coordinates : []);
+      feature.__bbox = bb;
+    }
+    if (lon < bb[0] || lon > bb[2] || lat < bb[1] || lat > bb[3]) continue;
     if (pointInFeature(lon, lat, feature)) return feature;
   }
   return null;
@@ -1840,13 +2117,16 @@ function aohShowRightPanel(feature, level) {
   const panel = document.getElementById('aoh-right-panel');
   const name = feature.properties.name || feature.properties.NAME || '';
   const admin = feature.properties.admin || feature.properties.NAME || '';
-  const cnProv = chineseProvinceNames[name] || name;
+  const cnProv = chineseProvinceNames[name] || window.__chineseNames?.[name] || name;
   const cnCountry = window.__chineseNames?.[admin] || admin;
   const flagUrl = getFlagUrl(admin);
   const provEcon = aohGetProvinceEcon(name);
-  // 归属判定：优先看领土归属记录（被占领省份视为自己国家），否则看所属国家
+  const me = confirmedCountry?.enName || window.__ownCountry;
+  // 归属判定：优先看领土归属记录（被占领省份视为新宗主），否则看所属国家
   const owner = (window.__territoryOwner && window.__territoryOwner[name]) || admin;
-  const isOwnCountry = confirmedCountry && (owner === confirmedCountry.enName);
+  const isOwnCountry = me && (owner === me);
+  const atWar = me && isAtWar(me, owner);
+  const garrison = armies[name];
 
   let buildHtml = '';
   if (isOwnCountry && level === 'province') {
@@ -1861,7 +2141,7 @@ function aohShowRightPanel(feature, level) {
       const atMax = lv >= def.maxLevel;
       const queueKey = name + '|' + key;
       const isBuilding = !!buildingQueue[queueKey];
-      const daysLeft = isBuilding ? buildingQueue[queueKey].daysLeft : 0;
+      const daysLeft = isBuilding ? buildingQueue[queueKey].daysLeft.toFixed(1) : 0;
       const cost = Math.round(def.baseCost * (1 + lv * 0.5));
       const canBuild = aohRes.gold >= cost && !atMax && !isBuilding;
       const statusText = isBuilding ? '建造中 ' + daysLeft + '天' : atMax ? 'MAX' : cost + '💰';
@@ -1876,36 +2156,61 @@ function aohShowRightPanel(feature, level) {
     }
   }
 
+  // 征兵：消耗受总动员科技折扣
+  const rcGold = Math.round(20 * (1 - playerMods.recruit));
+  const rcMp = Math.round(500 * (1 - playerMods.recruit));
   const recruitHtml = isOwnCountry && level === 'province' ? `
     <div class="rp-divider"></div>
     <div class="rp-section">
       <div class="rp-section-title">军事</div>
-      <button id="rp-btn-recruit" style="width:100%;padding:8px;border:1px solid rgba(100,180,255,.4);border-radius:6px;background:rgba(20,40,70,.4);color:#bbddee;font-size:13px;cursor:pointer;transition:all .2s;">征召军团（20金 + 500人力）</button>
+      <button id="rp-btn-recruit" style="width:100%;padding:8px;border:1px solid rgba(100,180,255,.4);border-radius:6px;background:rgba(20,40,70,.4);color:#bbddee;font-size:13px;cursor:pointer;transition:all .2s;">征召 ${Math.round(500 + playerMods.recruit * 500)} 兵（${rcGold}金 + ${rcMp}人力）</button>
     </div>
   ` : '';
 
-  // 别国/敌对省份：显示宣战按钮（玩家本土和被占领领土不显示）
-  const warHtml = (!isOwnCountry && confirmedCountry && level === 'province') ? `
-    <div class="rp-divider"></div>
-    <div class="rp-section">
-      <div class="rp-section-title">军事行动</div>
-      <button id="rp-btn-declare-war" style="width:100%;padding:8px;border:1px solid rgba(255,90,70,.5);border-radius:6px;background:rgba(80,20,15,.4);color:#ff9a88;font-size:13px;cursor:pointer;transition:all .2s;font-weight:600;">⚔ 宣战 ${cnCountry}</button>
-      <div id="rp-war-actions" style="display:none;margin-top:6px;flex-direction:column;gap:6px;">
-        <button id="rp-war-invade" style="width:100%;padding:7px;border:1px solid rgba(100,180,255,.4);border-radius:6px;background:rgba(20,40,70,.4);color:#bbddee;font-size:12px;cursor:pointer;transition:all .2s;">🚶 派兵入侵</button>
-        <button id="rp-war-missile" style="width:100%;padding:7px;border:1px solid rgba(255,170,60,.4);border-radius:6px;background:rgba(70,45,10,.4);color:#ffce8a;font-size:12px;cursor:pointer;transition:all .2s;">🚀 导弹轰炸（需导弹）</button>
-      </div>
-    </div>
-  ` : '';
+  // 驻军信息（任何省份都显示）
+  let garrisonHtml = '';
+  if (garrison && garrison.troops > 0) {
+    const off = garrison.officerId ? officerPool.find(o => o.id === garrison.officerId) : null;
+    garrisonHtml = `<div class="rp-stat"><span class="rp-label">驻军</span><span class="rp-value">${garrison.troops >= 1000 ? (garrison.troops / 1000).toFixed(1) + 'k' : garrison.troops}（${UI.cn(garrison.owner)}${off ? ' · ' + off.name : ''}）</span></div>`;
+  }
+
+  // 别国省份：宣战/造借口/入侵/导弹
+  let warHtml = '';
+  if (!isOwnCountry && me && level === 'province') {
+    const justified = isJustified(owner);
+    const justifyingState = justifying[owner];
+    let btns = '';
+    if (!atWar) {
+      if (justified) {
+        btns += `<button id="rp-btn-declare-war" style="width:100%;padding:8px;margin-bottom:6px;border:1px solid rgba(255,90,70,.6);border-radius:6px;background:rgba(80,20,15,.5);color:#ff9a88;font-size:13px;cursor:pointer;font-weight:600;">⚔ 宣战 ${cnCountry}（借口已就绪）</button>`;
+      } else if (justifyingState && !justifyingState.ready) {
+        btns += `<div style="width:100%;padding:8px;margin-bottom:6px;border:1px dashed rgba(255,200,60,.4);border-radius:6px;color:#f0c864;font-size:12px;text-align:center">📜 制造借口中… 约${justifyingState.daysLeft}天</div>`;
+      } else {
+        btns += `<button id="rp-btn-justify" style="width:100%;padding:7px;margin-bottom:6px;border:1px solid rgba(255,200,60,.4);border-radius:6px;background:rgba(70,45,10,.4);color:#ffce8a;font-size:12px;cursor:pointer;">📜 制造战争借口（20外交点 · 5天）</button>`;
+        btns += `<button id="rp-btn-declare-war" style="width:100%;padding:7px;margin-bottom:6px;border:1px solid rgba(255,90,70,.4);border-radius:6px;background:rgba(80,20,15,.35);color:#ff9a88;font-size:12px;cursor:pointer;">⚔ 直接宣战（无借口：-15威望）</button>`;
+      }
+    } else {
+      btns += `<div style="width:100%;padding:6px;margin-bottom:6px;border:1px solid rgba(255,90,70,.3);border-radius:6px;color:#ff9a88;font-size:12px;text-align:center">⚔ 与 ${cnCountry} 交战中</div>`;
+      btns += `<button id="rp-war-invade" style="width:100%;padding:7px;margin-bottom:6px;border:1px solid rgba(100,180,255,.4);border-radius:6px;background:rgba(20,40,70,.4);color:#bbddee;font-size:12px;cursor:pointer;">🚶 进攻此省（选己方出兵点）</button>`;
+      btns += `<button id="rp-war-missile" style="width:100%;padding:7px;border:1px solid rgba(255,170,60,.4);border-radius:6px;background:rgba(70,45,10,.4);color:#ffce8a;font-size:12px;cursor:pointer;">🚀 导弹轰炸（库存 ${aohRes.missiles}）</button>`;
+    }
+    warHtml = `<div class="rp-divider"></div><div class="rp-section"><div class="rp-section-title">军事行动</div>${btns}</div>`;
+  }
+
+  const ownerNat = nations[owner];
+  const govLine = ownerNat ? `<div class="rp-stat"><span class="rp-label">政权</span><span class="rp-value">${ownerNat.greatPower ? '★ 列强' : ownerNat.personality === 'expansionist' ? '扩张主义' : ownerNat.personality === 'defensive' ? '守成主义' : '均衡发展'}${ownerNat.overlord ? ' · 傀儡' : ''}</span></div>` : '';
 
   panel.innerHTML = `
     <div class="rp-header">
       <img class="rp-flag" src="${flagUrl}" alt="">
-      <div><div class="rp-name">${cnProv}</div><div class="rp-sub">${cnCountry}</div></div>
+      <div><div class="rp-name">${cnProv}</div><div class="rp-sub">${cnCountry}${atWar ? ' · 交战中' : ''}</div></div>
     </div>
     <div class="rp-section">
       <div class="rp-section-title">省份信息</div>
       <div class="rp-stat"><span class="rp-label">经济</span><span class="rp-value">${parseFloat(provEcon.economy.toFixed(2))}</span></div>
       <div class="rp-stat"><span class="rp-label">人口</span><span class="rp-value">${(provEcon.population / 1000).toFixed(1)}K</span></div>
+      ${garrisonHtml}
+      ${govLine}
     </div>
     ${buildHtml}
     ${recruitHtml}
@@ -1935,30 +2240,38 @@ function aohShowRightPanel(feature, level) {
   const recruitBtn = document.getElementById('rp-btn-recruit');
   if (recruitBtn) {
     recruitBtn.addEventListener('click', () => {
-      if (aohRes.gold < 20) { aohNotify('金币不足，需要20'); return; }
-      if (aohRes.manpower < 500) { aohNotify('人力不足，需要500'); return; }
-      aohRes.gold -= 20;
-      aohRes.manpower -= 500;
-      if (!armies[name]) armies[name] = 0;
-      armies[name] += 500;
-      updateArmyMarker(name, armies[name], confirmedCountry?.enName || '');
+      if (aohRes.gold < rcGold) { aohNotify('金币不足，需要' + rcGold); return; }
+      if (aohRes.manpower < rcMp) { aohNotify('人力不足，需要' + rcMp); return; }
+      aohRes.gold -= rcGold;
+      aohRes.manpower -= rcMp;
+      const troops = Math.round(500 + playerMods.recruit * 500);
+      if (armies[name] && armies[name].owner === me) armies[name].troops += troops;
+      else armies[name] = { owner: me, troops };
+      updateArmyMarker(name, armies[name].troops, me);
       aohUpdateResources();
-      aohNotify('征召成功！' + cnProv + '驻军 ' + armies[name] + '人');
+      aohNotify('征召成功！' + cnProv + ' 驻军 ' + armies[name].troops + ' 人');
     });
   }
 
-  // ===== 宣战 / 入侵 / 轰炸 事件绑定 =====
+  // ===== 宣战 / 借口 / 入侵 / 轰炸 事件绑定 =====
+  const justifyBtn = document.getElementById('rp-btn-justify');
+  if (justifyBtn) justifyBtn.addEventListener('click', () => { startJustify(owner); aohShowRightPanel(feature, level); });
+
   const declareWarBtn = document.getElementById('rp-btn-declare-war');
   if (declareWarBtn) {
     declareWarBtn.addEventListener('click', () => {
-      const actions = document.getElementById('rp-war-actions');
-      if (actions) actions.style.display = (actions.style.display === 'flex') ? 'none' : 'flex';
+      const justified = isJustified(owner);
+      const r = declareWar(me, owner, { today: { y: timeYear, m: timeMonth, d: timeDay }, justified });
+      if (!r.ok) { aohNotify(r.msg); return; }
+      if (!justified) { aohRes.legacy = Math.max(0, aohRes.legacy - 15); aohUpdateResources(); }
+      delete justifying[owner];
+      aohShowRightPanel(feature, level);
     });
   }
   const warInvadeBtn = document.getElementById('rp-war-invade');
   if (warInvadeBtn) {
     warInvadeBtn.addEventListener('click', () => {
-      aohStartInvasion(admin, name);
+      aohStartInvasion(owner, name);
     });
   }
   const warMissileBtn = document.getElementById('rp-war-missile');
@@ -2097,7 +2410,6 @@ let timeSlotIndex = 0;
 let speedIndex = 1;
 let timeRunning = false;
 let timeAccum = 0;
-let countryFlags = {};
 
 function updateTimeDisplay() {
   document.getElementById('time-text').textContent = `${timeYear}年${timeMonth}月${timeDay}日 ${TIME_SLOTS[timeSlotIndex]}`;
@@ -2132,22 +2444,33 @@ function aohTickArmyMovement() {
   for (let i = armyAnimations.length - 1; i >= 0; i--) {
     const anim = armyAnimations[i];
     if (anim.done) {
-      armies[anim.toName] = anim.troops;
-      createArmyMarker(anim.toName, anim.troops, confirmedCountry?.enName || '');
       armyMarkers.remove(anim.sprite);
       armyAnimations.splice(i, 1);
       if (armyAnimations.length === 0) clearArmyTrails();
-      // 入侵动画：军队到达后占领该省份
-      if (anim.invade) {
-        aohConquerProvince(anim.toName, anim.troops);
-      }
+      onArmyArrive({
+        province: anim.toName,
+        owner: anim.ownerCode || confirmedCountry?.enName || '',
+        troops: anim.troops,
+        origin: anim.fromName || '',
+        officerId: anim.officerId || null,
+      });
     }
   }
 }
 
 let lastFrameTime = performance.now();
 
-const advanceTime = function() { _origAdvanceTime(); aohTickEconomy(); aohTickPopulation(); aohTickProvinceBuildings(); aohTickTech(); aohTickMissiles(); aohTickConstruction(); aohTickArmyMovement(); };
+const advanceTime = function() {
+  _origAdvanceTime();
+  aohTickArmyMovement();
+  runTicks();
+  if (timeSlotIndex === 0) { // 新的一天
+    aohTickProvinceBuildings();
+    aohTickConstruction();
+    aohTickMissiles();
+    runDay({ y: timeYear, m: timeMonth, d: timeDay });
+  }
+};
 const setTimeSpeed = function(i) { _origSetTimeSpeed(i); aohSyncTime(); };
 
 function aohSyncTime() {
@@ -2309,6 +2632,7 @@ function animate() {
     window.__capitalStars.children.forEach(s => { if (s.material) s.material.opacity = 1; });
   }
   aohSmoothArmyPositions();
+  flushTerritoryRepaint(performance.now());
   controls.update();
   composer.render();
 }
@@ -2437,9 +2761,15 @@ document.addEventListener('pointerup', (e) => {
     while (obj.parent && obj.parent !== armyMarkers) obj = obj.parent;
     if (obj.name && obj.name.startsWith('army_')) {
       const provName = obj.name.replace('army_', '');
-      if (armies[provName] > 0) {
-        selectedArmy = provName;
-        showArmyPanel(provName);
+      const g = armies[provName];
+      if (g && g.troops > 0) {
+        const me = confirmedCountry?.enName || window.__ownCountry;
+        if (g.owner === me) {
+          selectedArmy = provName;
+          showArmyPanel(provName);
+        } else {
+          aohNotify(`${UI.cn(g.owner)} 驻军：${g.troops >= 1000 ? (g.troops / 1000).toFixed(1) + 'k' : g.troops} 人`);
+        }
         return;
       }
     }
@@ -2461,58 +2791,17 @@ document.addEventListener('pointerup', (e) => {
       // 入侵模式：点击自己国家有驻军的省份作为出兵点
       if (invadeMode && invadeTarget) {
         const fromProv = province.properties.name;
-        const ownerOfProv = (window.__territoryOwner && window.__territoryOwner[fromProv]) || '';
-        if (ownerOfProv === confirmedCountry?.enName && armies[fromProv] > 0) {
-          const toProv = invadeTarget.province;
-          if (fromProv !== toProv) {
-            const troops = armies[fromProv] || 0;
-            delete armies[fromProv];
-            updateArmyMarker(fromProv, 0, '');
-            const path = findPath(fromProv, toProv);
-            // 若无法通过陆路寻路（如目标为无省份区划的国家），视为空降/远洋入侵，直接占领
-            if (!path || path.length < 2) {
-              armies[toProv] = troops;
-              createArmyMarker(toProv, troops, confirmedCountry?.enName || '');
-              aohConquerProvince(toProv, troops);
-              invadeMode = false;
-              invadeTarget = null;
-              aohHideRightPanel();
-              return;
-            }
-            clearArmyTrails();
-            drawArmyTrail(path);
-            const daysPerHop = path.length <= 3 ? 2 : 1;
-            animateArmyPath(path, troops, confirmedCountry?.enName || '', daysPerHop, true);
-            aohNotify('🚩 入侵军队已出发：' + fromProv + ' → ' + toProv + '（约' + ((path.length - 1) * daysPerHop) + '天）');
-            invadeMode = false;
-            invadeTarget = null;
-            aohHideRightPanel();
-            return;
-          } else {
-            invadeMode = false;
-            invadeTarget = null;
-            aohNotify('出兵点不能是目标省份本身');
-            return;
-          }
-        } else {
-          aohNotify('请点击你自己国家且有驻军的省份作为出兵点');
-          return;
+        const ok = playerArmyAction(fromProv, invadeTarget.province);
+        if (ok) {
+          invadeMode = false;
+          invadeTarget = null;
+          aohHideRightPanel();
         }
+        return;
       }
       if (armyMoveMode && selectedArmy) {
-        const fromProv = selectedArmy;
         const toProv = province.properties.name;
-        if (fromProv !== toProv) {
-          const troops = armies[fromProv] || 0;
-          delete armies[fromProv];
-          updateArmyMarker(fromProv, 0, '');
-          const path = findPath(fromProv, toProv);
-          clearArmyTrails();
-          drawArmyTrail(path);
-          const daysPerHop = path.length <= 3 ? 2 : 1;
-          animateArmyPath(path, troops, confirmedCountry?.enName || '', daysPerHop);
-          aohNotify('军队正在移动（' + path.length + '站，约' + ((path.length - 1) * daysPerHop) + '天）');
-        }
+        if (toProv !== selectedArmy) playerArmyAction(selectedArmy, toProv);
         armyMoveMode = false;
         selectedArmy = null;
         hideArmyPanel();
@@ -2526,19 +2815,7 @@ document.addEventListener('pointerup', (e) => {
       const provinces = window.__provincesGeoJSON;
       const hasProvinces = provinces && provinces.features.some(f => f.properties.admin === countryName);
       if (armyMoveMode && selectedArmy && !hasProvinces) {
-        const fromProv = selectedArmy;
-        const toProv = countryName;
-        if (fromProv !== toProv) {
-          const troops = armies[fromProv] || 0;
-          delete armies[fromProv];
-          updateArmyMarker(fromProv, 0, '');
-          const path = findPath(fromProv, toProv);
-          clearArmyTrails();
-          drawArmyTrail(path);
-          const daysPerHop = path.length <= 3 ? 2 : 1;
-          animateArmyPath(path, troops, confirmedCountry?.enName || '', daysPerHop);
-          aohNotify('军队正在移动（' + path.length + '站，约' + ((path.length - 1) * daysPerHop) + '天）');
-        }
+        if (countryName !== selectedArmy) playerArmyAction(selectedArmy, countryName);
         armyMoveMode = false;
         selectedArmy = null;
         hideArmyPanel();
@@ -2577,9 +2854,10 @@ document.getElementById('bp-officer').addEventListener('click', () => {
 
 document.querySelectorAll('.map-mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
+    if (gameState !== 'playing') return;
     document.querySelectorAll('.map-mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    aohNotify(`地图模式: ${btn.querySelector('.tip').textContent}`);
+    setMapMode(btn.dataset.mode);
   });
 });
 
@@ -2589,17 +2867,19 @@ document.getElementById('sb-tech').addEventListener('click', () => {
   aohRenderTech();
 });
 
-document.getElementById('sb-mission').addEventListener('click', () => { if (gameState === 'playing') aohNotify('任务系统开发中...'); });
-document.getElementById('sb-law').addEventListener('click', () => { if (gameState === 'playing') aohNotify('法律系统开发中...'); });
-document.getElementById('sb-court').addEventListener('click', () => { if (gameState === 'playing') aohNotify('宫廷系统开发中...'); });
-document.getElementById('sb-war').addEventListener('click', () => { if (gameState === 'playing') aohNotify('战争系统开发中...'); });
+document.getElementById('sb-mission').addEventListener('click', () => { if (gameState === 'playing') aohNotify('任务系统开发中...（二期）'); });
+document.getElementById('sb-law').addEventListener('click', () => { if (gameState === 'playing') aohNotify('法律系统开发中...（二期）'); });
+document.getElementById('sb-court').addEventListener('click', () => { if (gameState === 'playing') aohNotify('宫廷系统开发中...（二期）'); });
+document.getElementById('sb-war').addEventListener('click', () => {
+  if (gameState !== 'playing') return;
+  document.getElementById('war-popup').classList.add('visible');
+  renderWarPanel();
+});
 
 document.getElementById('bp-reorganize').addEventListener('click', () => { if (gameState === 'playing') aohNotify('重组功能开发中...'); });
 document.getElementById('bp-transport').addEventListener('click', () => { if (gameState === 'playing') aohNotify('运输功能开发中...'); });
 document.getElementById('bp-fortress').addEventListener('click', () => { if (gameState === 'playing') aohNotify('要塞功能开发中...'); });
 document.getElementById('bp-colonize').addEventListener('click', () => { if (gameState === 'playing') aohNotify('殖民功能开发中...'); });
-
-const aohRes = { gold: 500, economy: 50, manpower: 1000, diplomacy: 50, legacy: 0, population: 100000, growth: 1.2, war: 0, missiles: 0 };
 
 function aohUpdateResources() {
   document.getElementById('val-gold').textContent = Math.floor(aohRes.gold);
@@ -2609,7 +2889,8 @@ function aohUpdateResources() {
   document.getElementById('val-legacy').textContent = parseFloat(aohRes.legacy.toFixed(2));
   document.getElementById('val-population').textContent = aohRes.population > 1000000 ? (aohRes.population / 1000000).toFixed(2) + 'M' : (aohRes.population / 1000).toFixed(0) + 'K';
   document.getElementById('val-growth').textContent = (aohRes.growth >= 0 ? '+' : '') + aohRes.growth.toFixed(1) + '%';
-  document.getElementById('val-war').textContent = aohRes.war > 0 ? '战争(-' + aohRes.war + ')' : '和平';
+  const atWarNow = wars.some(w => sideOf(w, confirmedCountry?.enName || window.__ownCountry));
+  document.getElementById('val-war').textContent = (atWarNow ? '⚔ ' : '') + Math.round(aohRes.war) + '%';
   const missileEl = document.getElementById('val-missile');
   if (missileEl) missileEl.textContent = aohRes.missiles;
   aohRenderArmyCounts(); // 军团数随资源变化实时刷新
@@ -2617,6 +2898,7 @@ function aohUpdateResources() {
 
 function aohNotify(msg) {
   const container = document.getElementById('aoh-notifications');
+  if (!container) return;
   const el = document.createElement('div');
   el.className = 'aoh-notif';
   el.textContent = msg;
@@ -2649,118 +2931,17 @@ function aohHideUI() {
 }
 
 function aohInitCountryData(countryName) {
-  const gdpMap = {
-    'United States': 25000, 'China': 18000, 'Japan': 4200, 'Germany': 4100, 'India': 3500,
-    'United Kingdom': 3100, 'France': 2800, 'Russia': 2200, 'Canada': 2100, 'Brazil': 1900,
-    'Italy': 2000, 'Australia': 1700, 'South Korea': 1800, 'Spain': 1400, 'Mexico': 1300,
-    'Indonesia': 1200, 'Turkey': 900, 'Saudi Arabia': 1100, 'Switzerland': 800, 'Poland': 700,
-    'Netherlands': 1000, 'Sweden': 600, 'Belgium': 580, 'Norway': 550, 'Austria': 480,
-    'Israel': 520, 'United Arab Emirates': 500, 'Singapore': 450, 'Malaysia': 400, 'Thailand': 500,
-    'Vietnam': 400, 'Philippines': 400, 'Egypt': 450, 'South Africa': 400, 'Nigeria': 450,
-    'Kenya': 110, 'Ethiopia': 120, 'Pakistan': 350, 'Bangladesh': 420, 'Iran': 380,
-    'Iraq': 260, 'Argentina': 630, 'Chile': 300, 'Colombia': 340, 'Peru': 240,
-    'New Zealand': 250, 'Finland': 280, 'Denmark': 350, 'Ireland': 500, 'Portugal': 250,
-    'Greece': 220, 'Czech Republic': 280, 'Czechia': 280, 'Romania': 290, 'Hungary': 180,
-    'Ukraine': 160, 'Kazakhstan': 220, 'Morocco': 130, 'Algeria': 190, 'Libya': 40,
-    'Cuba': 100, 'North Korea': 30, 'South Korea': 1800, 'Japan': 4200, 'China': 18000,
-    'Russia': 2200, 'Germany': 4100, 'France': 2800, 'United Kingdom': 3100, 'Italy': 2000,
-    'Spain': 1400, 'Poland': 700, 'Netherlands': 1000, 'Belgium': 580, 'Sweden': 600,
-    'Austria': 480, 'Switzerland': 800, 'Norway': 550, 'Denmark': 350, 'Finland': 280,
-    'Ireland': 500, 'Portugal': 250, 'Greece': 220, 'Czech Republic': 280, 'Czechia': 280,
-    'Romania': 290, 'Hungary': 180, 'Bulgaria': 90, 'Slovakia': 110, 'Croatia': 70,
-    'Slovenia': 60, 'Lithuania': 65, 'Latvia': 40, 'Estonia': 35, 'Cyprus': 28,
-    'Malta': 18, 'Luxembourg': 80, 'Iceland': 25, 'Montenegro': 6, 'North Macedonia': 14,
-    'Albania': 18, 'Bosnia and Herzegovina': 23, 'Kosovo': 10, 'Serbia': 60, 'Moldova': 14,
-    'Belarus': 70, 'Georgia': 25, 'Armenia': 20, 'Azerbaijan': 55, 'Turkmenistan': 50,
-    'Uzbekistan': 80, 'Kyrgyzstan': 10, 'Tajikistan': 10, 'Afghanistan': 15, 'Pakistan': 350,
-    'Bangladesh': 420, 'Sri Lanka': 75, 'Nepal': 40, 'Bhutan': 3, 'Myanmar': 60,
-    'Thailand': 500, 'Vietnam': 400, 'Laos': 20, 'Cambodia': 30, 'Malaysia': 400,
-    'Indonesia': 1200, 'Philippines': 400, 'Singapore': 450, 'Brunei': 15, 'Timor-Leste': 2,
-    'Mongolia': 15, 'Taiwan': 800, 'Hong Kong': 360, 'Macau': 20,
-    'Saudi Arabia': 1100, 'United Arab Emirates': 500, 'Qatar': 220, 'Kuwait': 180,
-    'Bahrain': 45, 'Oman': 110, 'Jordan': 45, 'Lebanon': 20, 'Syria': 10, 'Iraq': 260,
-    'Iran': 380, 'Israel': 520, 'Palestine': 15, 'Yemen': 20, 'Oman': 110,
-    'Egypt': 450, 'Libya': 40, 'Tunisia': 50, 'Algeria': 190, 'Morocco': 130,
-    'Mauritania': 10, 'Mali': 20, 'Niger': 15, 'Chad': 12, 'Sudan': 35, 'South Sudan': 5,
-    'Ethiopia': 120, 'Eritrea': 2, 'Djibouti': 4, 'Somalia': 8, 'Kenya': 110,
-    'Uganda': 45, 'Tanzania': 75, 'Rwanda': 12, 'Burundi': 3, 'Democratic Republic of the Congo': 60,
-    'Republic of the Congo': 15, 'Gabon': 20, 'Equatorial Guinea': 12, 'Cameroon': 45,
-    'Central African Republic': 3, 'Nigeria': 450, 'Ghana': 75, 'Ivory Coast': 70,
-    'Liberia': 4, 'Sierra Leone': 4, 'Guinea': 16, 'Guinea-Bissau': 2, 'Senegal': 28,
-    'The Gambia': 2, 'Cape Verde': 2, 'Mauritius': 12, 'Seychelles': 2,
-    'South Africa': 400, 'Namibia': 13, 'Botswana': 18, 'Zimbabwe': 25, 'Zambia': 22,
-    'Malawi': 12, 'Mozambique': 16, 'Madagascar': 15, 'Eswatini': 4, 'Lesotho': 2,
-    'Brazil': 1900, 'Argentina': 630, 'Chile': 300, 'Colombia': 340, 'Peru': 240,
-    'Venezuela': 100, 'Ecuador': 110, 'Bolivia': 45, 'Paraguay': 40, 'Uruguay': 70,
-    'Guyana': 15, 'Suriname': 3, 'Trinidad and Tobago': 25, 'Cuba': 100, 'Jamaica': 17,
-    'Haiti': 20, 'Dominican Republic': 110, 'Puerto Rico': 100, 'Bahamas': 13,
-    'Belize': 3, 'Costa Rica': 65, 'El Salvador': 30, 'Guatemala': 90, 'Honduras': 30,
-    'Nicaragua': 15, 'Panama': 80, 'Mexico': 1300, 'Canada': 2100, 'United States': 25000,
-    'Australia': 1700, 'New Zealand': 250, 'Papua New Guinea': 30, 'Fiji': 5,
-    'Solomon Islands': 2, 'Vanuatu': 1, 'Samoa': 1, 'Tonga': 0.5, 'Micronesia': 0.4,
-    'Palau': 0.3, 'Marshall Islands': 0.3, 'Kiribati': 0.2, 'Tuvalu': 0.1, 'Nauru': 0.1,
-  };
-
-  const popMap = {
-    'United States': 331000000, 'China': 1412000000, 'India': 1393000000, 'Indonesia': 274000000,
-    'Pakistan': 220000000, 'Brazil': 213000000, 'Nigeria': 211000000, 'Bangladesh': 165000000,
-    'Russia': 146000000, 'Mexico': 128000000, 'Japan': 126000000, 'Ethiopia': 115000000,
-    'Philippines': 110000000, 'Egypt': 102000000, 'Vietnam': 97000000, 'DR Congo': 90000000,
-    'Turkey': 84000000, 'Iran': 84000000, 'Germany': 83000000, 'Thailand': 70000000,
-    'United Kingdom': 67000000, 'France': 67000000, 'Tanzania': 60000000, 'Italy': 60000000,
-    'South Africa': 59000000, 'Myanmar': 54000000, 'Kenya': 54000000, 'South Korea': 52000000,
-    'Colombia': 51000000, 'Spain': 47000000, 'Uganda': 46000000, 'Argentina': 45000000,
-    'Algeria': 44000000, 'Sudan': 44000000, 'Ukraine': 44000000, 'Iraq': 40000000,
-    'Poland': 38000000, 'Canada': 38000000, 'Morocco': 37000000, 'Saudi Arabia': 35000000,
-    'Uzbekistan': 34000000, 'Peru': 33000000, 'Angola': 33000000, 'Malaysia': 32000000,
-    'Mozambique': 31000000, 'Ghana': 31000000, 'Yemen': 30000000, 'Nepal': 29000000,
-    'Venezuela': 28000000, 'Madagascar': 28000000, 'Cameroon': 27000000, "Côte d'Ivoire": 26000000,
-    'North Korea': 26000000, 'Australia': 26000000, 'Taiwan': 24000000, 'Niger': 24000000,
-    'Sri Lanka': 22000000, 'Burkina Faso': 21000000, 'Mali': 20000000, 'Romania': 19000000,
-    'Malawi': 19000000, 'Chile': 19000000, 'Kazakhstan': 19000000, 'Guatemala': 18000000,
-    'Ecuador': 18000000, 'Netherlands': 17000000, 'Cambodia': 17000000, 'Senegal': 17000000,
-    'Chad': 16000000, 'Somalia': 16000000, 'Zimbabwe': 15000000, 'Guinea': 13000000,
-    'Rwanda': 13000000, 'Benin': 12000000, 'Tunisia': 12000000, 'Bolivia': 12000000,
-    'Belgium': 12000000, 'Cuba': 11000000, 'Burundi': 12000000, 'Jordan': 10000000,
-    'Haiti': 11000000, 'Dominican Republic': 11000000, 'Czech Republic': 11000000, 'Czechia': 11000000,
-    'Greece': 11000000, 'Portugal': 10000000, 'Sweden': 10000000, 'Azerbaijan': 10000000,
-    'Hungary': 10000000, 'Honduras': 10000000, 'Belarus': 9000000, 'Tajikistan': 9000000,
-    'Austria': 9000000, 'Papua New Guinea': 9000000, 'Serbia': 7000000, 'Israel': 9000000,
-    'Switzerland': 9000000, 'Togo': 8000000, 'Hong Kong': 7500000, 'Sierra Leone': 8000000,
-    'Laos': 7000000, 'Paraguay': 7000000, 'Libya': 7000000, 'Bulgaria': 7000000,
-    'Nicaragua': 7000000, 'Kyrgyzstan': 7000000, 'El Salvador': 6000000, 'Turkmenistan': 6000000,
-    'Singapore': 6000000, 'Denmark': 6000000, 'Finland': 6000000, 'Congo': 5000000,
-    'Slovakia': 5000000, 'Norway': 5000000, 'Oman': 5000000, 'Palestine': 5000000,
-    'Costa Rica': 5000000, 'Liberia': 5000000, 'Central African Republic': 5000000,
-    'Ireland': 5000000, 'New Zealand': 5000000, 'Mauritania': 5000000, 'Panama': 4000000,
-    'Kuwait': 4000000, 'Croatia': 4000000, 'Georgia': 4000000, 'Eritrea': 4000000,
-    'Uruguay': 4000000, 'Bosnia and Herzegovina': 3000000, 'Mongolia': 3000000,
-    'Armenia': 3000000, 'Jamaica': 3000000, 'Albania': 3000000, 'Qatar': 3000000,
-    'Puerto Rico': 3000000, 'Lithuania': 3000000, 'Namibia': 3000000, 'Gambia': 2000000,
-    'Botswana': 2000000, 'Gabon': 2000000, 'Slovenia': 2000000, 'Lesotho': 2000000,
-    'Guinea-Bissau': 2000000, 'Bahrain': 2000000, 'Latvia': 2000000, 'North Macedonia': 2000000,
-    'Equatorial Guinea': 1000000, 'Trinidad and Tobago': 1000000, 'Estonia': 1000000,
-    'Timor-Leste': 1000000, 'Mauritius': 1000000, 'Cyprus': 1000000, 'Eswatini': 1000000,
-    'Djibouti': 1000000, 'Fiji': 1000000, 'Bhutan': 1000000, 'Comoros': 1000000,
-    'Guyana': 1000000, 'Malta': 1000000, 'Suriname': 1000000, 'Cape Verde': 1000000,
-    'Brunei': 500000, 'Belize': 500000, 'Bahamas': 400000, 'Iceland': 400000,
-    'Barbados': 300000, 'Sao Tome and Principe': 200000, 'Samoa': 200000, 'Saint Lucia': 200000,
-    'Kiribati': 100000, 'Grenada': 100000, 'Tonga': 100000, 'Seychelles': 100000,
-    'Antigua and Barbuda': 100000, 'Andorra': 100000, 'Dominica': 100000, 'Marshall Islands': 100000,
-    'Saint Kitts and Nevis': 100000, 'Liechtenstein': 100000, 'Monaco': 100000,
-    'San Marino': 100000, 'Palau': 100000, 'Nauru': 100000, 'Tuvalu': 100000, 'Vatican City': 1000,
-  };
-
   const baseGDP = gdpMap[countryName] || 100;
   const basePop = popMap[countryName] || 5000000;
   aohRes.economy = Math.max(1, Math.min(100, Math.round(baseGDP / 250)));
-  aohRes.gold = baseGDP * 0.05 + Math.random() * 200;
-  aohRes.manpower = Math.round(basePop * 0.001);
+  aohRes.gold = Math.round(baseGDP * 0.06 + 200);
+  aohRes.manpower = Math.round(basePop * 0.0015);
   aohRes.diplomacy = 50;
   aohRes.legacy = 0;
   aohRes.population = basePop;
   aohRes.growth = 1.0 + Math.random() * 1.5;
-  aohRes.war = 0;
+  aohRes.war = 100; // 战争支持度
+  aohRes.missiles = 0;
 
   aohUpdateResources();
 
@@ -2768,13 +2949,14 @@ function aohInitCountryData(countryName) {
   document.getElementById('bar-flag-img').style.display = document.getElementById('bar-flag-img').src ? 'block' : 'none';
   document.getElementById('bar-country-name').textContent = window.__chineseNames?.[countryName] || countryName;
 
-  // 军团/军官数由 aohRenderArmyCounts 实时统计（aohUpdateResources 已联动刷新）
-
-  aohNotify(`${window.__chineseNames?.[countryName] || countryName} · 游戏开始`);
-
   refreshOfficerPool();
   initProvinceBuildings();
   aohInitTerritoryOwnership(countryName);
+  buildAdjacency();          // 陆路 + 海路邻接图
+  initNations(countryName);  // 全国家模型（含玩家初始驻军、AI、关系、列强）
+  refreshAllArmyMarkers();   // 显示世界各国驻军
+  aohUpdateResources();      // 刷新军团数等顶栏显示
+  aohNotify('🌍 ' + (window.__chineseNames?.[countryName] || countryName) + ' · 世界已苏醒，列强环伺');
 }
 
 // ===== 宣战 / 入侵 / 轰炸 系统 =====
@@ -2799,8 +2981,8 @@ function aohInitTerritoryOwnership(playerCountry) {
   window.__ownColor = (window.__countryColorMap || {})[playerCountry] || null;
 }
 
-// 重绘颜色球：从基础色备份恢复，再只把被玩家占领的外国省份涂成玩家国家原本的颜色。
-// 玩家自己的本土国家不做任何改动，保持原本颜色
+// 重绘颜色球：从基础色备份恢复，再把所有"归属与原属国不同"的省份涂成现任所有者的国家色。
+// 这样玩家与 AI 之间的领土变动都会在政治地图上呈现
 function aohRepaintTerritoryColors() {
   const canvas = window.__colorCanvas;
   const ctx = window.__colorCtx;
@@ -2808,22 +2990,22 @@ function aohRepaintTerritoryColors() {
   if (!canvas || !ctx || !base) return;
   const toCanvas = window.__toCanvasFn;
   const w = canvas.width, h = canvas.height;
-  const own = window.__ownCountry;
-  const ownColor = window.__ownColor;
+  const colorMap = window.__countryColorMap || {};
 
   // 1) 快速恢复基础国家色（drawImage 走 GPU，比重画 241 个国家快得多）
   ctx.clearRect(0, 0, w, h);
   ctx.drawImage(base, 0, 0);
 
-  if (!own || !ownColor) return;
-  // 2) 只覆盖被玩家占领的外国省份（归属==玩家，但原国家不是玩家）→ 涂成玩家国家原本颜色
+  // 2) 覆盖所有易主省份
   const geo = window.__provincesGeoJSON;
   if (geo) {
     for (const f of geo.features) {
       const pname = f.properties.name;
       if (!pname) continue;
-      if (window.__territoryOwner[pname] === own && (f.properties.admin || '') !== own) {
-        fillFeature(f, ownColor, ctx, toCanvas, w, h);
+      const owner = window.__territoryOwner ? window.__territoryOwner[pname] : null;
+      const origAdmin = f.properties.admin || '';
+      if (owner && owner !== origAdmin && colorMap[owner]) {
+        fillFeature(f, colorMap[owner], ctx, toCanvas, w, h);
       }
     }
   }
@@ -2864,10 +3046,15 @@ let invadeTarget = null; // { country, province }
 function aohStartInvasion(targetCountry, targetProvince) {
   if (gameState !== 'playing') return;
   if (!confirmedCountry) return;
+  const me = confirmedCountry.enName;
+  if (!isAtWar(me, targetCountry)) {
+    aohNotify(`尚未与 ${UI.cn(targetCountry)} 处于战争状态，请先宣战`);
+    return;
+  }
   // 找玩家可用的出兵省份（有驻军的自己省份）
   const ownProvs = [];
   for (const pname in armies) {
-    if (armies[pname] > 0 && (window.__territoryOwner[pname] === confirmedCountry.enName)) {
+    if (armies[pname].troops > 0 && (window.__territoryOwner[pname] === me)) {
       ownProvs.push(pname);
     }
   }
@@ -2877,48 +3064,26 @@ function aohStartInvasion(targetCountry, targetProvince) {
   }
   invadeMode = true;
   invadeTarget = { country: targetCountry, province: targetProvince };
-  aohNotify(`⚔ 已向 ${targetCountry} 宣战！点击自己国家一个有驻军的省份作为出兵点，军队将入侵 ${targetProvince}`);
-  // 进入战争状态
-  aohRes.war = Math.max(1, (aohRes.war || 0) + 1);
-  aohUpdateResources();
-  // 关闭右侧面板，避免遮挡点击
+  aohNotify(`⚔ 点击自己国家一个有驻军的省份作为出兵点，军队将进攻 ${UI.cn(targetProvince)}（到达后爆发战斗）`);
   aohHideRightPanel();
 }
 
-// 占领一个省份：变更归属、重绘颜色、更新军队
-function aohConquerProvince(provinceName, troops) {
-  const own = window.__ownCountry;
-  if (!own) return;
-  const prevOwner = window.__territoryOwner[provinceName];
-  if (prevOwner === own) {
-    aohNotify(provinceName + ' 已是你的领土');
-    return;
-  }
-  // 变更归属
-  window.__territoryOwner[provinceName] = own;
-  // 让军队旗帜显示玩家国旗（createArmyMarker 已在 aohTickArmyMovement 中创建，会使用玩家国旗）
-  // 重绘颜色
-  aohRepaintTerritoryColors();
-  // 增加战争经验/威望
-  aohRes.legacy = (aohRes.legacy || 0) + 2;
-  aohUpdateResources();
-  const cn = window.__chineseNames?.[provinceName] || provinceName;
-  aohNotify(`🏁 占领成功！${cn} 已成为你的领土`);
-  // 刷新右侧面板（若正在显示）
-  if (selectedCountry && selectedCountry.level === 'province' && selectedCountry.feature.properties.name === provinceName) {
-    aohShowRightPanel(selectedCountry.feature, selectedCountry.level);
-  }
-}
+// 领土占领由 js/nations.js transferProvince + js/combat.js 战斗解算统一处理
 
-// 导弹轰炸一个省份
+// 导弹轰炸一个省份（需处于战争状态）
 function aohMissileStrike(provinceName) {
   if (gameState !== 'playing') return;
+  const me = confirmedCountry?.enName || window.__ownCountry;
+  const targetOwner = (window.__territoryOwner && window.__territoryOwner[provinceName]) || provinceName;
+  if (me && targetOwner !== me && !isAtWar(me, targetOwner)) {
+    aohNotify('只能轰炸交战国目标');
+    return;
+  }
   if (!aohRes || aohRes.missiles < 1) {
     aohNotify('没有可用导弹！请先建造航天科技工厂生产导弹');
     return;
   }
   aohRes.missiles -= 1;
-  aohRes.war = Math.max(1, (aohRes.war || 0) + 1);
   const prov = aohGetProvinceEcon(provinceName);
   // 削弱目标省份：经济-8~15，人口-5%~12%
   const ecoDrop = 8 + Math.floor(Math.random() * 8);
@@ -2930,13 +3095,17 @@ function aohMissileStrike(provinceName) {
   aohExplosionEffect(provinceName);
   const cn = window.__chineseNames?.[provinceName] || provinceName;
   aohNotify(`💥 导弹轰炸 ${cn}！经济 -${ecoDrop}，人口 -${Math.round(popDrop / 1000)}K`);
-  // 有概率直接摧毁驻军
-  if (armies[provinceName] && Math.random() < 0.5) {
-    const destroyed = Math.round(armies[provinceName] * (0.3 + Math.random() * 0.5));
-    armies[provinceName] -= destroyed;
-    if (armies[provinceName] <= 0) delete armies[provinceName];
-    updateArmyMarker(provinceName, armies[provinceName] || 0, confirmedCountry?.enName || '');
-    aohNotify('轰炸摧毁敌方驻军 ' + destroyed + '人');
+  // 有概率直接摧毁驻军（任何阵营，含误伤）
+  const g = armies[provinceName];
+  if (g && Math.random() < 0.5) {
+    const destroyed = Math.round(g.troops * (0.3 + Math.random() * 0.5));
+    g.troops -= destroyed;
+    if (g.troops <= 0) delete armies[provinceName];
+    else updateArmyMarker(provinceName, g.troops, g.owner);
+    aohNotify(`轰炸摧毁 ${UI.cn(g.owner)} 驻军 ${destroyed} 人`);
+    // 被轰炸方战争支持度受损
+    const nat = nations[g.owner];
+    if (nat) nat.warSupport = Math.max(0, nat.warSupport - 2);
   }
 }
 
@@ -2968,19 +3137,25 @@ const SAVE_SLOTS = ['auto', '1', '2', '3'];
 const SAVE_KEY_PREFIX = 'aoh_save_';
 function slotName(slot) { return slot === 'auto' ? '自动' : slot; }
 
-// 保存当前游戏到指定槽位
+// 保存当前游戏到指定槽位（v2：含国家/战争/关系/战斗中军队）
 function aohSaveGame(slot) {
   if (gameState !== 'playing' || !confirmedCountry) { aohNotify('当前没有进行中的游戏'); return false; }
   try {
+    const inFlights = armyAnimations.map(a => ({
+      path: a.path.map(v => v), // Vector3 数组转纯数据
+      seg: a.seg, segT: a.segT, segDurs: a.segDurs,
+      troops: a.troops, toName: a.toName, fromName: a.fromName,
+      ownerCode: a.ownerCode, officerId: a.officerId, invade: a.invade,
+    }));
     const data = {
-      version: 1,
+      version: 2,
       slot,
       savedAt: Date.now(),
       playerCountry: confirmedCountry.enName || window.__ownCountry || '',
       playerCountryCn: confirmedCountry.cnName || document.getElementById('bar-country-name').textContent || '',
       timeYear, timeMonth, timeDay, timeSlotIndex, speedIndex,
       aohRes: { ...aohRes },
-      armies: { ...armies },
+      armies: JSON.parse(JSON.stringify(armies)),
       provinceData: JSON.parse(JSON.stringify(provinceData)),
       buildingQueue: { ...buildingQueue },
       techProgress: { ...techProgress },
@@ -2988,6 +3163,8 @@ function aohSaveGame(slot) {
       officerPool: JSON.parse(JSON.stringify(officerPool)),
       countryFlags: { ...countryFlags },
       territoryOwner: { ...(window.__territoryOwner || {}) },
+      inFlights,
+      sections: saveAllSections(),
     };
     localStorage.setItem(SAVE_KEY_PREFIX + slot, JSON.stringify(data));
     aohNotify('💾 已保存到槽位「' + slotName(slot) + '」');
@@ -2999,7 +3176,7 @@ function aohSaveGame(slot) {
   }
 }
 
-// 读取存档
+// 读取存档（自动迁移 v1 旧档）
 function aohLoadGame(slot) {
   try {
     const raw = localStorage.getItem(SAVE_KEY_PREFIX + slot);
@@ -3012,19 +3189,54 @@ function aohLoadGame(slot) {
     timeSlotIndex = data.timeSlotIndex ?? 0; speedIndex = data.speedIndex ?? 1;
     // 资源
     Object.assign(aohRes, data.aohRes || {});
-    // 集合
-    Object.keys(armies).forEach(k => delete armies[k]); Object.assign(armies, data.armies || {});
-    Object.keys(provinceData).forEach(k => delete provinceData[k]); Object.assign(provinceData, data.provinceData || {});
-    Object.keys(buildingQueue).forEach(k => delete buildingQueue[k]); Object.assign(buildingQueue, data.buildingQueue || {});
-    Object.keys(techProgress).forEach(k => delete techProgress[k]); Object.assign(techProgress, data.techProgress || {});
-    Object.keys(aohTechBonuses).forEach(k => delete aohTechBonuses[k]); Object.assign(aohTechBonuses, data.aohTechBonuses || {});
-    officerPool.length = 0; officerPool.push(...(data.officerPool || []));
-    countryFlags = { ...(data.countryFlags || {}) };
     // 领土归属与玩家颜色
     window.__ownCountry = data.playerCountry;
     window.__territoryOwner = {};
     Object.assign(window.__territoryOwner, data.territoryOwner || {});
     window.__ownColor = (window.__countryColorMap || {})[data.playerCountry] || null;
+    // 省份数据与建造队列
+    Object.keys(provinceData).forEach(k => delete provinceData[k]); Object.assign(provinceData, data.provinceData || {});
+    Object.keys(buildingQueue).forEach(k => delete buildingQueue[k]); Object.assign(buildingQueue, data.buildingQueue || {});
+    // 科技
+    Object.keys(techProgress).forEach(k => delete techProgress[k]); Object.assign(techProgress, data.techProgress || {});
+    Object.keys(aohTechBonuses).forEach(k => delete aohTechBonuses[k]); Object.assign(aohTechBonuses, data.aohTechBonuses || {});
+    officerPool.length = 0; officerPool.push(...(data.officerPool || []));
+    Object.keys(countryFlags).forEach(k => delete countryFlags[k]); Object.assign(countryFlags, data.countryFlags || {});
+
+    // 军队：v1 为 {省:兵数}（全部归玩家），v2 为 {省:{owner,troops}}
+    Object.keys(armies).forEach(k => delete armies[k]);
+    const rawArmies = data.armies || {};
+    for (const [prov, v] of Object.entries(rawArmies)) {
+      if (typeof v === 'number') armies[prov] = { owner: data.playerCountry, troops: v };
+      else armies[prov] = { ...v };
+    }
+
+    if ((data.version || 1) >= 2) {
+      // v2：恢复各系统分节（国家/战争/外交/战斗）
+      loadAllSections(data.sections || {});
+    } else {
+      // v1 迁移：重建世界国家（保留玩家征服），旧科技折算威望
+      initProvinceBuildings();
+      buildAdjacency();
+      initNations(data.playerCountry);
+      // 按存档领土归属修正各国省份数据
+      const provsByOwner = {};
+      for (const [pname, owner] of Object.entries(window.__territoryOwner)) {
+        (provsByOwner[owner] = provsByOwner[owner] || []).push(pname);
+      }
+      for (const n of Object.values(nations)) {
+        n.provinces = new Set(provsByOwner[n.name] || (n.provinces.size ? [...n.provinces] : [n.name]));
+        if (n.provinces.size === 0) n.alive = false;
+      }
+      const oldDone = Object.values(techProgress).filter(v => v === 'done').length;
+      if (oldDone > 0) {
+        aohRes.legacy += oldDone * 3;
+        Object.keys(techProgress).forEach(k => delete techProgress[k]);
+        aohNotify(`旧存档科技已折算为 ${oldDone * 3} 威望（新科技树已启用）`);
+      }
+    }
+    reapplyAllTechs();
+
     // 国家显示
     confirmedCountry = { cnName: data.playerCountryCn || data.playerCountry, enName: data.playerCountry, feature: null, level: 'country' };
     document.getElementById('bar-flag-img').src = getFlagUrl(data.playerCountry);
@@ -3042,6 +3254,26 @@ function aohLoadGame(slot) {
     aohRenderTech();
     aohRenderOfficers();
     aohRenderArmyCounts();
+    // 恢复行军中的军队
+    if (Array.isArray(data.inFlights)) {
+      for (const f of data.inFlights) {
+        if (!f.path || f.path.length < 2) continue;
+        const points = f.path.map(v => new THREE.Vector3(v.x, v.y, v.z));
+        const canvas = document.createElement('canvas');
+        canvas.width = 128; canvas.height = 80;
+        const moveTexture = new THREE.CanvasTexture(canvas);
+        const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: false });
+        const sprite = new THREE.Sprite(moveMat);
+        sprite.scale.set(0.025, 0.016, 1);
+        sprite.position.copy(points[Math.min(f.seg, points.length - 1)]);
+        armyMarkers.add(sprite);
+        armyAnimations.push({
+          sprite, path: points, seg: f.seg || 0, segT: f.segT || 0, segDurs: f.segDurs || [8],
+          troops: f.troops, toName: f.toName, fromName: f.fromName,
+          ownerCode: f.ownerCode, officerId: f.officerId, invade: f.invade,
+        });
+      }
+    }
     aohShowUI();
     aohUpdateResources();
     updateTimeDisplay();
@@ -3053,19 +3285,14 @@ function aohLoadGame(slot) {
     return true;
   } catch (e) {
     aohNotify('读取失败：' + e.message);
+    console.error(e);
     return false;
   }
 }
 
 // 彻底重置所有游戏状态（开新局 / 读档前 / 返回主菜单）
 function aohResetGameState() {
-  Object.keys(armies).forEach(k => delete armies[k]);
-  Object.keys(provinceData).forEach(k => delete provinceData[k]);
-  Object.keys(buildingQueue).forEach(k => delete buildingQueue[k]);
-  Object.keys(techProgress).forEach(k => delete techProgress[k]);
-  Object.keys(aohTechBonuses).forEach(k => delete aohTechBonuses[k]);
-  officerPool.length = 0;
-  countryFlags = {};
+  resetAllState();          // js/state.js：清空全部共享状态（含国家/战争/外交）
   window.__territoryOwner = {};
   window.__ownCountry = null;
   window.__ownColor = null;
@@ -3076,14 +3303,13 @@ function aohResetGameState() {
   armyMoveMode = false;
   invadeMode = false;
   invadeTarget = null;
-  missileTick = 0;
-  constructionTick = 0;
   confirmedCountry = null;
   selectedCountry = null;
   timeYear = 2026; timeMonth = 1; timeDay = 1; timeSlotIndex = 0;
   timeRunning = false; timeAccum = 0;
-  aohRes.gold = 500; aohRes.economy = 50; aohRes.manpower = 1000; aohRes.diplomacy = 50;
-  aohRes.legacy = 0; aohRes.population = 100000; aohRes.growth = 1.2; aohRes.war = 0; aohRes.missiles = 0;
+  // 地图模式回政治
+  document.querySelectorAll('.map-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'political'));
+  setMapMode('political');
 }
 
 // 渲染存档弹窗列表
@@ -3148,56 +3374,31 @@ function aohContinueGame() {
   else aohNotify('没有可继续的存档');
 }
 
-let economyDayCounter = 0;
-function aohTickEconomy() {
-  economyDayCounter++;
-  if (economyDayCounter < 8) return; // 每日结算一次
-  economyDayCounter = 0;
-  // 平衡后的每日收入：经济50 → 每天 +8 金；经济100 → 每天 +28 金（征兵需20金，攒钱更有策略性）
-  aohRes.gold += (aohRes.economy - 30) * 0.4;
-  if (aohRes.gold < 0) aohRes.gold = 0;
-  aohRes.manpower += Math.round(aohRes.economy * 0.15);
-  if (aohRes.economy > 60) aohRes.legacy += 0.08;
-  else if (aohRes.economy < 40) aohRes.legacy = Math.max(0, aohRes.legacy - 0.08);
-  aohUpdateResources();
-}
-
-function aohTickPopulation() {
-  aohRes.population += Math.round(aohRes.population * aohRes.growth * 0.0001);
-  if (aohRes.economy > 50) aohRes.growth = Math.min(5, aohRes.growth + 0.001);
-  else aohRes.growth = Math.max(0.1, aohRes.growth - 0.001);
-  aohUpdateResources();
-}
-
-let missileTick = 0;
+// 经济/人口结算已迁移到 js/economy.js（按日钩子，全部国家统一结算）
+// 导弹生产（按日）：工厂产量 + 科技加成
 function aohTickMissiles() {
-  missileTick++;
-  if (missileTick < 8) return;
-  missileTick = 0;
   let factoryCount = 0;
   for (const key in provinceData) {
     if (provinceData[key].aerospaceFactoryLv > 0) factoryCount++;
   }
-  if (factoryCount > 0) {
-    aohRes.missiles += factoryCount;
+  const production = factoryCount + playerMods.missile;
+  if (production > 0) {
+    aohRes.missiles += production;
     aohUpdateResources();
   }
 }
 
-let constructionTick = 0;
+// 建造结算（按日）：科技加成加速
 function aohTickConstruction() {
-  constructionTick++;
-  if (constructionTick < 8) return;
-  constructionTick = 0;
   for (const queueKey in buildingQueue) {
-    buildingQueue[queueKey].daysLeft--;
+    buildingQueue[queueKey].daysLeft -= 1 + playerMods.build;
     if (buildingQueue[queueKey].daysLeft <= 0) {
       const item = buildingQueue[queueKey];
       const prov = provinceData[item.name];
       const def = buildingDefs[item.key];
       if (prov && def) {
         prov[item.key + 'Lv'] = (prov[item.key + 'Lv'] || 0) + 1;
-        prov.economy += def.econBonus;
+        prov.economy = Math.min(100, prov.economy + def.econBonus);
         prov.population += def.popBonus;
         if (item.key === 'aerospaceCompany') countryFlags.hasAerospaceCompany = true;
         aohNotify(def.name + ' 建造完成！');
@@ -3206,69 +3407,6 @@ function aohTickConstruction() {
     }
   }
 }
-
-const provinceData = {};
-const provinceAdj = {};
-function buildProvinceAdjacency() {
-  const geo = window.__provincesGeoJSON;
-  if (!geo) return;
-  const featList = geo.features.filter(f => f.properties.name);
-  function getBBox(geometry) {
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    function scan(coords) { for (const c of coords) { if (Array.isArray(c[0])) scan(c); else { minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]); minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]); } } }
-    scan(geometry.coordinates);
-    return { minX, maxX, minY, maxY };
-  }
-  function bboxOverlap(a, b, margin) {
-    return !(a.maxX < b.minX - margin || b.maxX < a.minX - margin || a.maxY < b.minY - margin || b.maxY < a.minY - margin);
-  }
-  const bboxes = featList.map(f => ({ name: f.properties.name, box: getBBox(f.geometry) }));
-  for (let i = 0; i < bboxes.length; i++) {
-    const a = bboxes[i];
-    if (!provinceAdj[a.name]) provinceAdj[a.name] = new Set();
-    for (let j = i + 1; j < bboxes.length; j++) {
-      const b = bboxes[j];
-      if (bboxOverlap(a.box, b.box, 0.3)) {
-        if (!provinceAdj[b.name]) provinceAdj[b.name] = new Set();
-        provinceAdj[a.name].add(b.name);
-        provinceAdj[b.name].add(a.name);
-      }
-    }
-  }
-}
-
-function getBBox(geometry) {
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  function scan(coords) {
-    for (const c of coords) {
-      if (Array.isArray(c[0])) scan(c);
-      else { minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]); minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]); }
-    }
-  }
-  scan(geometry.coordinates);
-  return { minX, maxX, minY, maxY };
-}
-
-function findPath(from, to) {
-  if (from === to) return [from];
-  const visited = new Set([from]);
-  const queue = [[from]];
-  while (queue.length > 0) {
-    const path = queue.shift();
-    const current = path[path.length - 1];
-    const neighbors = provinceAdj[current] || new Set();
-    for (const next of neighbors) {
-      if (next === to) return [...path, next];
-      if (!visited.has(next)) {
-        visited.add(next);
-        queue.push([...path, next]);
-      }
-    }
-  }
-  return [from];
-}
-const buildingQueue = {};
-const armies = {};
 
 function latLonToVec3(lat, lon, r) {
   const phi = (90 - lat) * Math.PI / 180;
@@ -3281,8 +3419,9 @@ function latLonToVec3(lat, lon, r) {
 }
 
 function getProvinceCenter(name) {
-  if (!window.__provincesGeoJSON) return null;
-  const feat = window.__provincesGeoJSON.features.find(f => f.properties.name === name);
+  let feat = null;
+  if (window.__provincesGeoJSON) feat = window.__provincesGeoJSON.features.find(f => f.properties.name === name);
+  if (!feat && window.__countriesGeoJSON) feat = window.__countriesGeoJSON.features.find(f => (f.properties.NAME || f.properties.name) === name);
   if (!feat) return null;
   const rings = [];
   const geom = feat.geometry;
@@ -3346,31 +3485,49 @@ function updateArmyMarker(provinceName, troops, countryCode) {
 function refreshAllArmyMarkers() {
   while (armyMarkers.children.length > 0) armyMarkers.remove(armyMarkers.children[0]);
   for (const prov in armies) {
-    if (armies[prov] > 0) createArmyMarker(prov, armies[prov], confirmedCountry?.enName || '');
+    const g = armies[prov];
+    if (g && g.troops > 0) createArmyMarker(prov, g.troops, g.owner);
   }
 }
 
 function showArmyPanel(provinceName) {
   const panel = document.getElementById('army-panel');
-  const troops = armies[provinceName] || 0;
-  document.getElementById('army-panel-title').textContent = provinceName + ' (' + troops + '人)';
+  const g = armies[provinceName];
+  const troops = g ? g.troops : 0;
+  const off = g && g.officerId ? officerPool.find(o => o.id === g.officerId) : null;
+  document.getElementById('army-panel-title').textContent =
+    UI.cn(provinceName) + ' (' + (troops >= 1000 ? (troops / 1000).toFixed(1) + 'k' : troops) + '人' + (off ? ' · ' + off.name : '') + ')';
   panel.classList.add('visible');
   document.getElementById('army-btn-move').onclick = () => {
     armyMoveMode = true;
-    document.getElementById('army-panel').classList.add('visible');
-    aohNotify('已进入移动模式，点击目标省份');
+    aohNotify('已进入移动模式：点击己方省份=调动，点击交战国省份=进攻');
   };
-  document.getElementById('army-btn-reorganize').onclick = () => { aohNotify('重组功能开发中'); };
+  document.getElementById('army-btn-reorganize').onclick = () => {
+    // 指派军官：选攻击最高的空闲军官
+    if (!armies[provinceName]) return;
+    const assigned = new Set(Object.values(armies).map(a => a.officerId).filter(Boolean));
+    const free = officerPool.filter(o => !assigned.has(o.id));
+    if (!free.length) { aohNotify('没有空闲军官（军官团面板查看）'); return; }
+    free.sort((a, b) => (b.stats.attack + b.stats.defense) - (a.stats.attack + a.stats.defense));
+    armies[provinceName].officerId = free[0].id;
+    aohNotify(`🎖️ ${free[0].name}（${specNames[free[0].spec]}型）已指挥 ${UI.cn(provinceName)} 驻军`);
+    showArmyPanel(provinceName);
+  };
   document.getElementById('army-btn-disband').onclick = () => {
-    aohRes.manpower += armies[provinceName];
-    delete armies[provinceName];
-    updateArmyMarker(provinceName, 0, '');
-    aohUpdateResources();
+    if (armies[provinceName]) {
+      aohRes.manpower += Math.round(troops * 0.8);
+      delete armies[provinceName];
+      updateArmyMarker(provinceName, 0, '');
+      aohUpdateResources();
+    }
     panel.classList.remove('visible');
     selectedArmy = null;
-    aohNotify('军队已解散，人力已回收');
+    aohNotify('军队已解散，80%人力已回收');
   };
-  document.getElementById('army-btn-merge').onclick = () => { aohNotify('合并功能开发中'); };
+  document.getElementById('army-btn-merge').onclick = () => {
+    armyMoveMode = true;
+    aohNotify('合并模式：点击目标己方省份，部队将并入该省驻军');
+  };
 }
 
 function hideArmyPanel() {
@@ -3386,37 +3543,6 @@ const buildingDefs = {
   aerospaceCompany: { name: '航天科技公司', baseCost: 500, maxLevel: 1, econBonus: 15, popBonus: 1000, unique: true, buildTime: 10 },
   aerospaceFactory: { name: '航天科技工厂', baseCost: 1000, maxLevel: 1, econBonus: 30, popBonus: 5000, requires: 'aerospaceCompany', buildTime: 8 },
 };
-const coastalCountries = new Set([
-  'United States', 'Canada', 'Mexico', 'Brazil', 'Argentina', 'Chile', 'Colombia', 'Peru',
-  'United Kingdom', 'France', 'Spain', 'Portugal', 'Italy', 'Germany', 'Netherlands', 'Belgium',
-  'Norway', 'Sweden', 'Denmark', 'Finland', 'Ireland', 'Iceland', 'Greece', 'Turkey',
-  'Russia', 'China', 'Japan', 'South Korea', 'North Korea', 'India', 'Pakistan', 'Bangladesh',
-  'Thailand', 'Vietnam', 'Indonesia', 'Philippines', 'Malaysia', 'Myanmar', 'Cambodia',
-  'Australia', 'New Zealand', 'Papua New Guinea', 'Fiji',
-  'Egypt', 'South Africa', 'Nigeria', 'Kenya', 'Tanzania', 'Mozambique', 'Madagascar',
-  'Morocco', 'Algeria', 'Tunisia', 'Libya', 'Somalia', 'Djibouti', 'Eritrea',
-  'Saudi Arabia', 'United Arab Emirates', 'Oman', 'Yemen', 'Iran', 'Iraq', 'Israel',
-  'Jordan', 'Lebanon', 'Syria', 'Qatar', 'Bahrain', 'Kuwait', 'Cyprus',
-  'Cuba', 'Jamaica', 'Haiti', 'Dominican Republic', 'Bahamas', 'Trinidad and Tobago',
-  'Panama', 'Costa Rica', 'Honduras', 'Guatemala', 'El Salvador', 'Nicaragua', 'Belize',
-  'Guyana', 'Suriname', 'Venezuela', 'Ecuador', 'Uruguay', 'Paraguay',
-  'Croatia', 'Albania', 'Montenegro', 'Bosnia and Herzegovina', 'Slovenia',
-  'Bulgaria', 'Romania', 'Ukraine', 'Georgia', 'Poland', 'Latvia', 'Lithuania', 'Estonia',
-  'Senegal', 'Guinea', 'Guinea-Bissau', 'Sierra Leone', 'Liberia', 'Ivory Coast', 'Ghana',
-  'Togo', 'Benin', 'Cameroon', 'Gabon', 'Congo', 'Equatorial Guinea', 'Angola',
-  'Namibia', 'Botswana', 'Malawi', 'Zambia', 'Zimbabwe', 'Swaziland', 'Lesotho',
-  'Singapore', 'Brunei', 'Taiwan', 'Hong Kong', 'Macau',
-  'Sri Lanka', 'Maldives', 'Seychelles', 'Mauritius', 'Cape Verde', 'Comoros',
-]);
-
-function nameHash(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    h = ((h << 5) - h) + str.charCodeAt(i);
-    h |= 0;
-  }
-  return Math.abs(h);
-}
 
 function initProvinceBuildings() {
   if (!window.__provincesGeoJSON) return;
@@ -3456,10 +3582,11 @@ function aohGetProvinceEcon(name) {
 }
 
 function aohTickProvinceBuildings() {
+  // 按日结算（advanceTime 的日分支调用）
   for (const name in provinceData) {
     const p = provinceData[name];
-    p.economy = Math.max(0, Math.min(100, p.economy + 0.1 * (p.buildingLevel - 1)));
-    p.population += Math.round(p.population * 0.0001 * (p.infraLv + p.farmLv));
+    p.economy = Math.max(0, Math.min(100, p.economy + 0.12 * (p.buildingLevel - 1)));
+    p.population += Math.round(p.population * 0.0008 * (p.infraLv + p.farmLv));
     p.buildingLevel = Math.min(10, p.roadLv + p.infraLv + p.farmLv + p.barrackLv + (p.portLv || 0));
   }
 }
@@ -3477,82 +3604,49 @@ function renderProvinceBuildings(name) {
   return html;
 }
 
-const techDefs = [
-  { id: 'agri1', name: '农业改良', cost: 100, days: 24, desc: '提升农作物产量', apply: () => { aohRes.economy += 2; } },
-  { id: 'agri2', name: '灌溉技术', cost: 150, days: 30, desc: '完善灌溉系统', apply: () => { aohRes.economy += 3; } },
-  { id: 'roads1', name: '铺路技术', cost: 80, days: 20, desc: '改善交通网络', apply: () => { aohRes.economy += 2; } },
-  { id: 'mining1', name: '采矿术', cost: 120, days: 28, desc: '提高矿产开采', apply: () => { aohRes.gold += 200; aohRes.economy += 1; } },
-  { id: 'iron1', name: '冶铁术', cost: 140, days: 32, desc: '提升金属冶炼', apply: () => { aohRes.economy += 3; } },
-  { id: 'gunpowder', name: '火药术', cost: 200, days: 36, desc: '解锁火药武器', apply: () => { aohRes.economy += 2; aohRes.manpower += 500; } },
-  { id: 'printing', name: '印刷术', cost: 180, days: 34, desc: '提升文化传播', apply: () => { aohRes.legacy += 5; } },
-  { id: 'compass', name: '指南针', cost: 160, days: 30, desc: '提升航海能力', apply: () => { aohRes.economy += 4; } },
-  { id: 'ship1', name: '造船术', cost: 200, days: 38, desc: '建造大型船只', apply: () => { aohRes.economy += 5; } },
-  { id: 'trade1', name: '贸易路线', cost: 170, days: 32, desc: '开辟新贸易路线', apply: () => { aohRes.gold += 300; } },
-  { id: 'edu1', name: '教育制度', cost: 150, days: 30, desc: '建立学校体系', apply: () => { aohRes.growth += 0.2; aohRes.legacy += 3; } },
-  { id: 'law1', name: '成文法典', cost: 130, days: 26, desc: '编纂法律', apply: () => { aohRes.diplomacy += 10; } },
-  { id: 'medicine', name: '医学进步', cost: 190, days: 40, desc: '改善医疗水平', apply: () => { aohRes.growth += 0.3; aohRes.manpower += 300; } },
-  { id: 'bank1', name: '银行制度', cost: 220, days: 42, desc: '建立现代银行', apply: () => { aohRes.gold += 500; aohRes.economy += 2; } },
-  { id: 'industry', name: '工业革命', cost: 350, days: 60, desc: '机械化生产', apply: () => { aohRes.economy += 8; aohRes.gold += 400; } },
-  { id: 'railway', name: '铁路运输', cost: 300, days: 54, desc: '建设铁路网', apply: () => { aohRes.economy += 6; } },
-  { id: 'electric', name: '电力应用', cost: 400, days: 68, desc: '电气化时代', apply: () => { aohRes.economy += 10; aohRes.gold += 600; } },
-  { id: 'telephone', name: '通信技术', cost: 280, days: 48, desc: '改进通信方式', apply: () => { aohRes.diplomacy += 15; } },
-  { id: 'nuclear', name: '核能研究', cost: 500, days: 72, desc: '原子能利用', apply: () => { aohRes.economy += 15; aohRes.legacy += 20; } },
-  { id: 'computer', name: '计算机技术', cost: 450, days: 64, desc: '信息时代', apply: () => { aohRes.economy += 12; aohRes.gold += 800; } },
-];
 
-const aohTechBonuses = {};
-const techProgress = {};
 
-function aohTickTech() {
-  for (const tech of techDefs) {
-    if (techProgress[tech.id] === 'researching') {
-      if (!aohTechBonuses[tech.id]) aohTechBonuses[tech.id] = { ticks: 0 };
-      aohTechBonuses[tech.id].ticks++;
-      if (aohTechBonuses[tech.id].ticks >= tech.days) {
-        techProgress[tech.id] = 'done';
-        tech.apply();
-        aohNotify(`科技完成: ${tech.name}`);
-        aohUpdateResources();
-        delete aohTechBonuses[tech.id];
-        // 若还有其他科技正在研究，则保持按钮高亮
-        const stillResearching = techDefs.some(t => techProgress[t.id] === 'researching');
-        const techBtn = document.getElementById('sb-tech');
-        if (techBtn) techBtn.classList.toggle('researching', stillResearching);
-      }
-    }
-  }
-}
-
+// 科技树渲染（数据与逻辑在 js/tech.js）
 function aohRenderTech() {
   const grid = document.getElementById('tech-grid');
   grid.innerHTML = '';
-  for (const tech of techDefs) {
-    const status = techProgress[tech.id] || 'available';
-    const progress = status === 'researching' ? (aohTechBonuses[tech.id]?.ticks || 0) / tech.days * 100 : status === 'done' ? 100 : 0;
-    const card = document.createElement('div');
-    card.className = 'tech-card' + (status === 'done' ? ' researched' : status === 'researching' ? ' researching' : '');
-    card.innerHTML = `
-      <div class="tech-name">${tech.name}</div>
-      <div class="tech-desc">${tech.desc}</div>
-      <div class="tech-cost">${status === 'done' ? '✅ 已完成' : status === 'researching' ? '⏳ 研究中...' : `花费: ${tech.cost}💰 | 耗时: ${tech.days}天`}</div>
-      ${status === 'researching' ? `<div class="tech-progress"><div class="tech-progress-bar" style="width:${progress}%"></div></div>` : ''}
-    `;
-    if (status === 'available') {
-      card.addEventListener('click', () => {
-        if (aohRes.gold >= tech.cost) {
-          aohRes.gold -= tech.cost;
-          aohUpdateResources();
-          techProgress[tech.id] = 'researching';
-          aohTechBonuses[tech.id] = { ticks: 0 };
-          aohNotify(`开始研究: ${tech.name}`);
-          document.getElementById('sb-tech').classList.add('researching');
+  const slots = researchSlots(), busy = researchingCount();
+  const header = document.createElement('div');
+  header.style.cssText = 'grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:2px 4px 8px;font-size:12px;color:#8899aa';
+  header.innerHTML = `<span>研究槽：<b style="color:#dde">${busy}</b> / ${slots}${busy >= slots ? '（已满）' : ''}　科技加成：攻+${(playerMods.atk * 100).toFixed(0)}% 防+${(playerMods.def * 100).toFixed(0)}% 税+${(playerMods.income * 100).toFixed(0)}%</span>`;
+  grid.appendChild(header);
+
+  for (const branch of TECH_BRANCHES) {
+    const col = document.createElement('div');
+    col.className = 'tech-branch';
+    const bt = techTreeDefs.filter(t => t.branch === branch.id).sort((a, b) => a.tier - b.tier);
+    const btitle = document.createElement('div');
+    btitle.className = 'tech-branch-title';
+    btitle.style.color = branch.color;
+    btitle.textContent = branch.icon + ' ' + branch.name;
+    col.appendChild(btitle);
+    for (const tech of bt) {
+      const status = techProgress[tech.id] || (techUnlocked(tech) ? 'available' : 'locked');
+      const prog = status === 'researching' ? ((aohTechBonuses[tech.id]?.days || 0) / tech.days * 100) : 0;
+      const card = document.createElement('div');
+      card.className = 'tech-card' + (status === 'done' ? ' researched' : status === 'researching' ? ' researching' : status === 'locked' ? ' locked' : '');
+      card.style.borderLeftColor = branch.color;
+      const reqNames = tech.req.map(r => (techById(r) || { name: r }).name).join('、');
+      card.innerHTML = `
+        <div class="tech-name">${tech.name} <span style="font-size:10px;color:#667">T${tech.tier}</span></div>
+        <div class="tech-desc">${tech.desc}</div>
+        <div class="tech-cost">${status === 'done' ? '✅ 已完成' : status === 'researching' ? `⏳ ${prog.toFixed(0)}%` : status === 'locked' ? `🔒 需 ${reqNames}` : `${tech.cost}💰 · ${tech.days}天`}</div>
+        ${status === 'researching' ? `<div class="tech-progress"><div class="tech-progress-bar" style="width:${prog}%"></div></div>` : ''}`;
+      if (status === 'available') {
+        card.addEventListener('click', () => {
+          const r = startResearch(tech.id);
+          aohNotify(r.ok ? '🔬 开始研究：' + tech.name : r.msg);
           aohRenderTech();
-        } else {
-          aohNotify('金币不足!');
-        }
-      });
+        });
+      }
+      col.appendChild(card);
     }
-    grid.appendChild(card);
+    grid.appendChild(col);
   }
 }
 
@@ -3568,8 +3662,6 @@ const officerNames = [
 const officerSpecialties = ['attack', 'defense', 'mobility', 'siege', 'command'];
 const specNames = { attack: '进攻', defense: '防御', mobility: '机动', siege: '围攻', command: '指挥' };
 
-let officerPool = [];
-
 function generateOfficer() {
   const name = officerNames[Math.floor(Math.random() * officerNames.length)];
   const spec = officerSpecialties[Math.floor(Math.random() * officerSpecialties.length)];
@@ -3582,7 +3674,7 @@ function generateOfficer() {
 }
 
 function refreshOfficerPool() {
-  officerPool = [];
+  officerPool.length = 0;
   const count = Math.max(3, Math.round(aohRes.economy / 15));
   for (let i = 0; i < count; i++) officerPool.push(generateOfficer());
   aohRenderArmyCounts();
@@ -3608,9 +3700,10 @@ function aohRenderOfficers() {
 }
 
 function aohRenderArmyCounts() {
-  // 军团数 = 实际有驻军的省份数（真实统计，随征兵/解散/移动/占领实时变化）
+  // 军团数 = 玩家有驻军的省份数（真实统计，随征兵/解散/移动/占领实时变化）
+  const me = confirmedCountry?.enName || window.__ownCountry || '';
   let armyCount = 0;
-  for (const prov in armies) if (armies[prov] > 0) armyCount++;
+  for (const prov in armies) if (armies[prov].owner === me && armies[prov].troops > 0) armyCount++;
   const armyMax = Math.max(5, Math.round(aohRes.economy / 10));
   document.getElementById('bp-army-count').textContent = Math.min(armyCount, armyMax);
   document.getElementById('bp-army-max').textContent = armyMax;
@@ -3618,35 +3711,205 @@ function aohRenderArmyCounts() {
   document.getElementById('bp-officer-max').textContent = Math.max(3, Math.round(aohRes.economy / 15));
 }
 
+// ===== 真实外交面板：关系值/状态/行动 =====
 function aohRenderDiplomacy() {
   const grid = document.getElementById('diplo-grid');
   grid.innerHTML = '';
-  if (!window.__countriesGeoJSON) return;
-  const countries = window.__countriesGeoJSON.features.filter(f => {
-    const n = f.properties.NAME || '';
-    return n && n !== 'Antarctica' && n !== confirmedCountry?.enName;
+  const me = confirmedCountry?.enName || window.__ownCountry;
+  if (!me || !nations[me]) return;
+  const meNat = nations[me];
+
+  // 排序：交战国 > 同盟 > 列强 > 关系最低；取前 36
+  const others = Object.values(nations).filter(n => n.alive && n.name !== me);
+  const warSet = new Set();
+  for (const w of wars) {
+    const s = sideOf(w, me);
+    if (!s) continue;
+    for (const e of (s === 'atk' ? w.defenders : w.attackers)) warSet.add(e);
+  }
+  others.sort((a, b) => {
+    const wa = warSet.has(a.name) ? 0 : 1, wb = warSet.has(b.name) ? 0 : 1;
+    if (wa !== wb) return wa - wb;
+    const la = a.overlord === me ? 0 : 1, lb = b.overlord === me ? 0 : 1;
+    if (la !== lb) return la - lb;
+    const ga = a.greatPower ? 0 : 1, gb = b.greatPower ? 0 : 1;
+    if (ga !== gb) return ga - gb;
+    return getRelation(me, a.name) - getRelation(me, b.name);
   });
-  const sample = countries.slice(0, 30);
-  for (const feature of sample) {
-    const name = feature.properties.NAME || '';
-    const cnName = window.__chineseNames?.[name] || name;
-    const flagUrl = getFlagUrl(name);
-    const h = nameHash(name + (confirmedCountry?.enName || ''));
-    const relTypes = ['ally', 'neutral', 'rival'];
-    const relType = relTypes[h % 3];
-    const relNames = { ally: '同盟', neutral: '中立', rival: '敌对' };
+  const sample = others.slice(0, 36);
+
+  for (const n of sample) {
+    const rel = Math.round(getRelation(me, n.name));
+    const atWar = warSet.has(n.name);
+    const allied = alliances.some(([x, y]) => (x === me && y === n.name) || (x === n.name && y === me));
+    const isVassal = n.overlord === me;
+    const relColor = atWar ? '#ff6a55' : rel > 25 ? '#7fe08f' : rel < -25 ? '#ff9a88' : '#aabbcc';
+    const relBar = ((rel + 100) / 200 * 100).toFixed(0);
+    const status = atWar ? '<span style="color:#ff6a55">⚔ 交战</span>' : allied ? '<span style="color:#7fd4ff">🤝 同盟</span>' : isVassal ? '<span style="color:#c9a0ff">👑 傀儡</span>' : justifying[n.name]?.ready ? '<span style="color:#ffd877">📜 借口就绪</span>' : '';
     const row = document.createElement('div');
     row.className = 'diplo-row';
+    row.style.cssText = 'display:grid;grid-template-columns:34px 1fr 90px 150px;gap:8px;align-items:center;padding:8px 6px;border-bottom:1px solid rgba(80,120,200,.12)';
     row.innerHTML = `
-      <img class="diplo-flag" src="${flagUrl}" alt="">
-      <span class="diplo-name">${cnName}</span>
-      <span class="diplo-rel ${relType}">${relNames[relType]}</span>
-    `;
+      <img class="diplo-flag" src="${getFlagUrl(n.name)}" alt="" style="width:32px;height:21px;object-fit:contain;border-radius:2px">
+      <div>
+        <div class="diplo-name" style="font-size:13px;color:#dde">${UI.cn(n.name)}${n.greatPower ? ' ★' : ''}${n.overlord && !isVassal ? ' 👑' : ''}</div>
+        <div style="height:4px;background:rgba(60,70,100,.5);border-radius:2px;margin-top:3px;overflow:hidden">
+          <div style="height:100%;width:${relBar}%;background:${relColor};border-radius:2px"></div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:${relColor};text-align:center">${atWar ? '战争' : (rel > 0 ? '+' : '') + rel}</div>
+      <div style="display:flex;gap:4px;justify-content:flex-end">
+        ${status || `<button data-act="improve" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(100,180,255,.3);border-radius:4px;background:rgba(20,40,70,.4);color:#bbd;cursor:pointer">改善20💰</button>
+        <button data-act="ally" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(120,200,255,.3);border-radius:4px;background:rgba(20,50,80,.4);color:#9cd;cursor:pointer">结盟</button>`}
+        ${!atWar ? `<button data-act="war" data-n="${n.name}" style="padding:4px 8px;font-size:11px;border:1px solid rgba(255,90,70,.3);border-radius:4px;background:rgba(80,20,15,.35);color:#f98;cursor:pointer">宣战</button>` : ''}
+      </div>`;
     grid.appendChild(row);
   }
+
+  grid.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.n, act = btn.dataset.act;
+      if (act === 'improve') {
+        if (aohRes.gold < 20) { aohNotify('金币不足（需要20）'); return; }
+        aohRes.gold -= 20;
+        addRelation(me, target, 12);
+        aohNotify(`💌 与 ${UI.cn(target)} 的关系改善了`);
+        aohUpdateResources();
+        aohRenderDiplomacy();
+      } else if (act === 'ally') {
+        const ok = formAlliance(me, target);
+        if (!ok) aohNotify('对方拒绝结盟（需要关系 ≥ 55 且双方同盟数 < 2）');
+        aohRenderDiplomacy();
+      } else if (act === 'war') {
+        const justified = isJustified(target);
+        const r = declareWar(me, target, { today: { y: timeYear, m: timeMonth, d: timeDay }, justified });
+        if (r.ok) {
+          if (!justified) { aohRes.legacy = Math.max(0, aohRes.legacy - 15); aohUpdateResources(); }
+          delete justifying[target];
+        } else aohNotify(r.msg);
+        aohRenderDiplomacy();
+      }
+    });
+  });
 }
 
-console.log('3D HD Earth - AOH3 Style');
+// ===== 战争总览面板 =====
+function renderWarPanel() {
+  const grid = document.getElementById('war-grid');
+  if (!grid) return;
+  const me = confirmedCountry?.enName || window.__ownCountry;
+  grid.innerHTML = '';
+  if (!me) return;
+
+  const myWars = wars.filter(w => sideOf(w, me));
+  if (myWars.length === 0) {
+    grid.innerHTML = '<div style="padding:30px;text-align:center;color:#778899;font-size:13px">当前没有战争。和平发展，或在外交面板寻找目标。</div>';
+    return;
+  }
+  for (const w of myWars) {
+    const mySide = sideOf(w, me);
+    const enemies = (mySide === 'atk' ? w.defenders : w.attackers).map(n => UI.cn(n)).join('、');
+    const myScore = w.score[mySide], theirScore = w.score[mySide === 'atk' ? 'def' : 'atk'];
+    const block = document.createElement('div');
+    block.style.cssText = 'border:1px solid rgba(255,120,90,.25);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:rgba(40,18,14,.3)';
+    // 进行中的战斗
+    let battleHtml = '';
+    for (const [p, b] of Object.entries(battles)) {
+      const defOwner = window.__territoryOwner[p];
+      const involvesMe = b.attacker.owner === me || defOwner === me;
+      if (!involvesMe) continue;
+      const atkIsMe = b.attacker.owner === me;
+      const mine = atkIsMe ? b.attacker.troops : (armies[p] ? armies[p].troops : 0);
+      const foe = atkIsMe ? (armies[p] ? armies[p].troops : 0) : b.attacker.troops;
+      battleHtml += `<div style="display:flex;justify-content:space-between;font-size:12px;color:#ccb;padding:3px 0">
+        <span>⚔ ${UI.cn(p)}（第${b.day}天）</span>
+        <span>我方 ${mine >= 1000 ? (mine / 1000).toFixed(1) + 'k' : mine} vs ${foe >= 1000 ? (foe / 1000).toFixed(1) + 'k' : foe}</span>
+      </div>`;
+    }
+    const opts = peaceOptions(w, mySide);
+    let optBtns = '';
+    for (const o of opts) {
+      if (!o.need) continue;
+      optBtns += `<button data-war="${w.id}" data-deal="${o.id}" style="padding:6px 12px;margin-right:6px;font-size:12px;border:1px solid rgba(120,220,160,.35);border-radius:6px;background:rgba(20,50,35,.4);color:#9fe0b8;cursor:pointer">${o.name}</button>`;
+    }
+    if (!optBtns) optBtns = '<span style="font-size:11px;color:#889">战争分数不足，暂无可提出的条款</span>';
+    block.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:14px;color:#ffcece;font-weight:600">⚔ vs ${enemies}</div>
+        <div style="font-size:11px;color:#99a">第 ${w.daysActive} 天 · 分数 <b style="color:#8ce">${myScore}</b> : <b style="color:#e88">${theirScore}</b></div>
+      </div>
+      <div style="font-size:11px;color:#889;margin-bottom:6px">伤亡：我方 ${(w.casualties[mySide] / 1000).toFixed(1)}k · 敌方 ${(w.casualties[mySide === 'atk' ? 'def' : 'atk'] / 1000).toFixed(1)}k</div>
+      ${battleHtml ? `<div style="border-top:1px solid rgba(120,90,80,.3);padding-top:6px;margin-bottom:6px">${battleHtml}</div>` : ''}
+      <div style="border-top:1px solid rgba(120,90,80,.3);padding-top:8px">
+        <div style="font-size:11px;color:#889;margin-bottom:4px">提出和平条款（敌方可能拒绝）：</div>
+        ${optBtns}
+      </div>`;
+    grid.appendChild(block);
+  }
+  grid.querySelectorAll('button[data-deal]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = wars.find(x => x.id == btn.dataset.war);
+      if (!w) return;
+      const mySide = sideOf(w, me);
+      const deal = btn.dataset.deal;
+      if (aiAcceptPeace(w, mySide, deal)) {
+        makePeace(w, mySide, deal, { y: timeYear, m: timeMonth, d: timeDay });
+      } else {
+        aohNotify('敌方拒绝了你的和平条款，战争继续');
+      }
+      renderWarPanel();
+    });
+  });
+}
+
+console.log('3D HD Earth - AOH3 Style · 模块化一期改造');
+
+// ===== 调试/自动化测试桥 =====
+window.__debug = {
+  startAs(en, cn) {
+    if (gameState === 'menu') enterSelecting();
+    selectedCountry = { enName: en, cnName: cn || en, level: 'country', feature: null };
+    confirmSelection();
+  },
+  state() {
+    const me = window.__ownCountry;
+    return {
+      gameState, me,
+      time: timeYear + '-' + timeMonth + '-' + timeDay, speed: speedIndex,
+      nations: Object.keys(nations).length,
+      alive: Object.values(nations).filter(n => n.alive).length,
+      wars: wars.map(w => ({ id: w.id, atk: w.attackers, def: w.defenders, days: w.daysActive, score: w.score })),
+      battles: Object.keys(battles).length,
+      armies: Object.keys(armies).length,
+      myArmies: Object.values(armies).filter(a => a.owner === me && a.troops > 0).length,
+      myProvinces: me && nations[me] ? nations[me].provinces.size : 0,
+      totalProvinces: gameCtx.totalProvinces,
+      gold: Math.round(aohRes.gold), manpower: Math.round(aohRes.manpower),
+      warSupport: Math.round(aohRes.war),
+      dayCount: gameCtx.dayCount || 0,
+    };
+  },
+  speed: (i) => setTimeSpeed(i),
+  save: (s) => aohSaveGame(s),
+  load: (s) => aohLoadGame(s),
+  war: (a, b) => declareWar(a, b, { today: { y: timeYear, m: timeMonth, d: timeDay } }),
+  move: (o) => gameMoveArmy(o),
+  recruit(prov, times = 1) {
+    const me = window.__ownCountry;
+    for (let i = 0; i < times; i++) {
+      if (aohRes.gold < 20 || aohRes.manpower < 500) return 'resources exhausted';
+      aohRes.gold -= 20; aohRes.manpower -= 500;
+      if (armies[prov] && armies[prov].owner === me) armies[prov].troops += 500;
+      else armies[prov] = { owner: me, troops: 500 };
+    }
+    updateArmyMarker(prov, armies[prov].troops, me);
+    return armies[prov].troops;
+  },
+  mapMode: (m) => setMapMode(m),
+  adjacency(prov) {
+    return { land: [...(provinceAdj[prov] || [])], sea: [...(seaAdj[prov] || [])] };
+  },
+};
 </script>
 </body>
 </html>
