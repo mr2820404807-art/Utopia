@@ -411,7 +411,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // ===== 游戏系统模块（一期改造：文明时代3式玩法）=====
-import { nameHash, coastalCountries, gdpMap, popMap } from './js/data.js';
+import { nameHash, coastalCountries, gdpMap, popMap, dataKey } from './js/data.js';
 import {
   UI, aohRes, playerMods, armies, provinceData, buildingQueue, techProgress, aohTechBonuses,
   officerPool, countryFlags, nations, wars, battles, justifying, gameCtx,
@@ -436,7 +436,7 @@ import './js/victory.js';
 let territoryDirty = false, lastTerritoryRepaint = 0;
 function scheduleTerritoryRepaint() { territoryDirty = true; }
 function flushTerritoryRepaint(now) {
-  if (!territoryDirty || now - lastTerritoryRepaint < 600) return;
+  if (!territoryDirty || now - lastTerritoryRepaint < 1200) return;
   territoryDirty = false; lastTerritoryRepaint = now;
   if (currentMapMode() === 'political') aohRepaintTerritoryColors();
   else repaintMap();
@@ -477,7 +477,7 @@ function makeBattleMarkerImpl(province, txt) {
   canvas.width = 200; canvas.height = 72;
   const ctx = canvas.getContext('2d');
   const tex = new THREE.CanvasTexture(canvas);
-  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true, depthWrite: false });
   const sp = new THREE.Sprite(mat);
   sp.scale.set(0.034, 0.012, 1);
   sp.position.copy(pos.clone().normalize().multiplyScalar(1.03));
@@ -964,7 +964,7 @@ function animateArmyPath(path, troops, countryCode, daysPerHop, invade, meta = {
   ctx.textBaseline = 'top';
   ctx.fillText(troops >= 1000 ? (troops/1000).toFixed(1)+'k' : troops, cx, cy + 18);
   const moveTexture = new THREE.CanvasTexture(canvas);
-  const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: false });
+  const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: true, depthWrite: false });
   const sprite = new THREE.Sprite(moveMat);
   sprite.scale.set(0.025, 0.016, 1);
   sprite.position.copy(points[0]);
@@ -1040,7 +1040,7 @@ function animateArmyMove(fromPos, toPos, troops, countryCode, fromName, toName, 
   ctx.textBaseline = 'top';
   ctx.fillText(troops >= 1000 ? (troops/1000).toFixed(1)+'k' : troops, cx, cy + 18);
   const moveTexture = new THREE.CanvasTexture(canvas);
-  const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: false });
+  const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: true, depthWrite: false });
   const sprite = new THREE.Sprite(moveMat);
   sprite.scale.set(0.025, 0.016, 1);
   armyMarkers.add(sprite);
@@ -1213,7 +1213,7 @@ function createBorderOverlay() {
     drawGeoJSON(provinces, pctx, provinceCanvas.width, provinceCanvas.height);
 
     const colorCanvas = document.createElement('canvas');
-    colorCanvas.width = 8192; colorCanvas.height = 4096;
+    colorCanvas.width = 4096; colorCanvas.height = 2048;
     const colorCtx = colorCanvas.getContext('2d');
 
     function genPalette(n) {
@@ -2948,8 +2948,8 @@ function aohHideUI() {
 }
 
 function aohInitCountryData(countryName) {
-  const baseGDP = gdpMap[countryName] || 100;
-  const basePop = popMap[countryName] || 5000000;
+  const baseGDP = gdpMap[dataKey(countryName)] || 100;
+  const basePop = popMap[dataKey(countryName)] || 5000000;
   aohRes.economy = Math.max(1, Math.min(100, Math.round(baseGDP / 250)));
   aohRes.gold = Math.round(baseGDP * 0.06 + 200);
   aohRes.manpower = Math.round(basePop * 0.0015);
@@ -3279,7 +3279,7 @@ function aohLoadGame(slot) {
         const canvas = document.createElement('canvas');
         canvas.width = 128; canvas.height = 80;
         const moveTexture = new THREE.CanvasTexture(canvas);
-        const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: false });
+        const moveMat = new THREE.SpriteMaterial({ map: moveTexture, transparent: true, depthTest: true, depthWrite: false });
         const sprite = new THREE.Sprite(moveMat);
         sprite.scale.set(0.025, 0.016, 1);
         sprite.position.copy(points[Math.min(f.seg, points.length - 1)]);
@@ -3483,7 +3483,7 @@ function createArmyMarker(provinceName, troops, countryCode) {
   ctx.textBaseline = 'top';
   ctx.fillText(troops >= 1000 ? (troops/1000).toFixed(1)+'k' : troops, cx, cy + 18);
   const flagTexture = new THREE.CanvasTexture(canvas);
-  const flagMat = new THREE.SpriteMaterial({ map: flagTexture, transparent: true, depthTest: false });
+  const flagMat = new THREE.SpriteMaterial({ map: flagTexture, transparent: true, depthTest: true, depthWrite: false });
   const flag = new THREE.Sprite(flagMat);
   flag.position.copy(pos);
   flag.scale.set(0.025, 0.016, 1);

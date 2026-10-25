@@ -148,19 +148,21 @@ function aiConsiderWar(n, today) {
   if (absDayCache < 2026 * 360 + 90) return;
   const myWars = warsOf(n.name).length;
   if (myWars >= (n.personality === 'expansionist' ? 2 : 1)) return;
+  // 世界同时进行的 AI 战争上限（原5→3，节奏更平和）
   const aiWars = wars.filter(w => !w.attackers.includes(window.__ownCountry) && !w.defenders.includes(window.__ownCountry)).length;
   if (aiWars >= gameCtx.aiWarLimit) return;
-  if (gameCtx.worldTension > 70) return;
-  if (Math.random() > n.aggression * 0.10) return;
+  if (gameCtx.worldTension > 50) return;
+  if (Math.random() > n.aggression * 0.035) return; // 开战概率调低（原0.10）
   const neighbors = neighborCountries(n).filter(c => {
     const cn = nations[c];
-    // 不主动攻打列强（含玩家所在列强），只欺负弱邻
+    // 不主动攻打列强（含玩家所在列强），只欺负弱邻；目标已在别的战争中也不打
     if (!cn || !cn.alive || cn.overlord || cn.greatPower) return false;
-    return getRelation(n.name, c) < 10 && !isAtWar(n.name, c) && !hasTruce(n.name, c, today);
+    if (warsOf(c).length > 0) return false;
+    return getRelation(n.name, c) < -10 && !isAtWar(n.name, c) && !hasTruce(n.name, c, today);
   });
   if (!neighbors.length) return;
   const myPow = nationPower(n);
-  let best = null, bestRatio = 1.8;
+  let best = null, bestRatio = 2.2;
   for (const c of neighbors) {
     const ratio = myPow / Math.max(1, nationPower(nations[c]));
     if (ratio > bestRatio) { bestRatio = ratio; best = c; }

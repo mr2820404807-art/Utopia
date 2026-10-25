@@ -6,6 +6,11 @@ import {
 } from './state.js';
 import { warsOf } from './diplomacy.js';
 
+// 战争支持度参数（参照文明时代3厌战值：进攻方掉得快，防守方掉得慢，和平恢复）
+const WAR_SUPPORT_DRAIN_AGGRESSOR = 0.45;
+const WAR_SUPPORT_DRAIN_DEFENDER = 0.25;
+const WAR_SUPPORT_RECOVER = 0.8;
+
 export function nationProvinceIncome(n) {
   let sum = 0;
   for (const p of n.provinces) {
@@ -43,10 +48,14 @@ function dailyEconomy() {
       for (const p of n.provinces) { const pd = provinceData[p]; if (pd) popSum += pd.population; }
       if (popSum > 0) n.population = Math.round(popSum / 30);
     }
-    // 战争支持度：和平恢复 / 战争消耗
-    const atWar = warsOf(n.name).length > 0;
-    if (atWar) n.warSupport = Math.max(0, n.warSupport - 0.25);
-    else n.warSupport = Math.min(100, n.warSupport + 0.6);
+    // 战争支持度：和平恢复 / 战争消耗（进攻方消耗更快）
+    const myWars = warsOf(n.name);
+    if (myWars.length > 0) {
+      const isAggressor = myWars.some(w => w.attackers.includes(n.name) && !w.defenders.includes(n.name));
+      n.warSupport = Math.max(0, n.warSupport - (isAggressor ? WAR_SUPPORT_DRAIN_AGGRESSOR : WAR_SUPPORT_DRAIN_DEFENDER));
+    } else {
+      n.warSupport = Math.min(100, n.warSupport + WAR_SUPPORT_RECOVER);
+    }
     // 国家经济指数 = 省份均值（影响战力/外交）
     if (n.provinces.size > 0) {
       const avg = nationProvinceIncome(n) / n.provinces.size;

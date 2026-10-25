@@ -2,6 +2,9 @@
 // 乌托邦 · 一期改造
 
 export const gdpMap = {
+  'North Korea': 30, 'Papua New Guinea': 30, 'Greenland': 3, 'New Caledonia': 10,
+  'French Polynesia': 6, 'Bermuda': 8, 'Cayman Islands': 4, 'Guam': 6, 'Aruba': 3,
+  'Faroe Islands': 3, 'Jersey': 6, 'Guernsey': 4, 'Isle of Man': 8,
   'United States': 25000, 'China': 18000, 'Japan': 4200, 'Germany': 4100, 'India': 3500,
   'United Kingdom': 3100, 'France': 2800, 'Italy': 2000, 'Canada': 2100, 'Brazil': 1900,
   'South Korea': 1800, 'Australia': 1700, 'Russia': 2200, 'Mexico': 1300, 'Spain': 1400,
@@ -90,22 +93,45 @@ export const popMap = {
   'San Marino': 100000, 'Palau': 100000, 'Nauru': 100000, 'Tuvalu': 100000, 'Vatican City': 1000,
 };
 
-// Natural Earth 里部分国家名与上表不同，做一层别名
+// Natural Earth 里部分国家名与上表不同，做一层别名（NE NAME -> 数据表键）
 export const nameAliases = {
-  'Democratic Republic of the Congo': 'Democratic Republic of the Congo',
-  'Congo': 'Republic of the Congo',
-  'Republic of the Congo': 'Republic of the Congo',
-  'Ivory Coast': "Côte d'Ivoire",
-  "Côte d'Ivoire": "Côte d'Ivoire",
-  'Swaziland': 'Eswatini',
-  'eSwatini': 'Eswatini',
   'United States of America': 'United States',
-  'Republic of Korea': 'South Korea',
-  "Korea": 'South Korea',
-  'Dem. Rep. Korea': 'North Korea',
-  'North Korea': 'North Korea',
-  'Czechia': 'Czechia',
+  'Dem. Rep. Congo': 'Democratic Republic of the Congo',
+  'Congo': 'Republic of the Congo',
+  'Dominican Rep.': 'Dominican Republic',
+  'Eq. Guinea': 'Equatorial Guinea',
+  'S. Sudan': 'South Sudan',
+  'eSwatini': 'Eswatini',
+  'Bosnia and Herz.': 'Bosnia and Herzegovina',
+  'Solomon Is.': 'Solomon Islands',
+  'Central African Rep.': 'Central African Republic',
+  'Cabo Verde': 'Cape Verde',
+  'São Tomé and Principe': 'Sao Tome and Principe',
+  "Côte d'Ivoire": 'Ivory Coast',
+  'W. Sahara': 'Western Sahara',
+  'Faeroe Is.': 'Faroe Islands',
+  'Cayman Is.': 'Cayman Islands',
+  'Turks and Caicos Is.': 'Turks and Caicos Islands',
+  'British Virgin Is.': 'British Virgin Islands',
+  'U.S. Virgin Is.': 'United States Virgin Islands',
+  'Marshall Is.': 'Marshall Islands',
+  'N. Mariana Is.': 'Northern Mariana Islands',
+  'St. Kitts and Nevis': 'Saint Kitts and Nevis',
+  'St. Vin. and Gren.': 'Saint Vincent and the Grenadines',
+  'Antigua and Barb.': 'Antigua and Barbuda',
+  'Wallis and Futuna Is.': 'Wallis and Futuna',
+  'Falkland Is.': 'Falkland Islands',
+  'Fr. Polynesia': 'French Polynesia',
+  'Cook Is.': 'Cook Islands',
+  'Pitcairn Is.': 'Pitcairn Islands',
+  'Vatican': 'Vatican City',
+  'Macao': 'Macau',
 };
+
+// 国家名 -> 数据表键（带别名兜底）
+export function dataKey(name) {
+  return nameAliases[name] || name;
+}
 
 export const coastalCountries = new Set([
   'United States', 'Canada', 'Mexico', 'Brazil', 'Argentina', 'Chile', 'Colombia', 'Peru',

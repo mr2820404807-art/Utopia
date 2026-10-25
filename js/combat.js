@@ -255,9 +255,10 @@ function dailyBattles() {
       * (1.25 + defNat.milTech * 0.05 + officerBonus(def.officerId, 'defense') + ((provDef ? provDef.barrackLv : 0) * 0.04) + (isPlayerDef ? playerMods.def : 0))
       * (0.85 + Math.random() * 0.3);
 
-    const pool = Math.min(atkPower, defPower) * 0.13;
-    const atkLoss = Math.round(pool * defPower / (atkPower + defPower));
-    const defLoss = Math.round(pool * atkPower / (atkPower + defPower));
+    // 按比例日损耗：优势越大，结束越快（悬殊 2~3 天，势均力敌 ~6 天）
+    const ratio = atkPower / (atkPower + defPower); // 攻方优势度 0~1
+    const atkLoss = Math.max(1, Math.round(b.attacker.troops * 0.35 * (1 - ratio)));
+    const defLoss = Math.max(1, Math.round(def.troops * 0.35 * ratio) + Math.round(60 * ratio));
     b.attacker.troops = Math.max(0, b.attacker.troops - atkLoss);
     def.troops = Math.max(0, def.troops - defLoss);
 
@@ -277,10 +278,15 @@ function dailyBattles() {
       endBattle(prov);
       continue;
     }
-    if (b.attacker.troops < Math.max(80, b.attacker.startTroops * 0.3) || b.day >= 12) {
+    if (b.attacker.troops < Math.max(80, b.attacker.startTroops * 0.35) || b.day >= 10) {
       const survivors = b.attacker.troops;
       if (b.attacker.officerId && Math.random() < 0.3) killOfficer(b.attacker.officerId);
       warEvent({ type: 'battleWon', province: prov, winner: defOwner, loser: b.attacker.owner });
+      if (isPlayerAtk) {
+        UI.notify(`💔 对 ${UI.cn(prov)} 的攻势失败（第${b.day}天），残部 ${survivors} 人撤退`);
+      } else if (isPlayerDef) {
+        UI.notify(`🛡️ 击退了 ${UI.cn(b.attacker.owner)} 对 ${UI.cn(prov)} 的进攻！`);
+      }
       retreat(b, survivors);
       endBattle(prov);
       continue;

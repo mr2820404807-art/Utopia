@@ -1,6 +1,6 @@
 // ===== 国家模型：为世界上每个国家建立可运作的状态 =====
 // 乌托邦 · 一期改造
-import { gdpMap, popMap, nameHash } from './data.js';
+import { gdpMap, popMap, nameHash, dataKey } from './data.js';
 import {
   aohRes, armies, nations, wars, battles, relations, alliances, gameCtx, relKey, provinceData,
   clearObj, UI, registerSave,
@@ -67,7 +67,7 @@ export function initNations(playerCountry) {
   const gdpEntries = [...countriesGeo.features]
     .map(f => f.properties.NAME || f.properties.name)
     .filter(Boolean)
-    .map(n => [n, gdpMap[n] || 50]);
+    .map(n => [n, gdpMap[dataKey(n)] || 50]);
   gdpEntries.sort((a, b) => b[1] - a[1]);
   const greatPowers = new Set(gdpEntries.slice(0, 8).map(e => e[0]));
 
@@ -76,8 +76,8 @@ export function initNations(playerCountry) {
     const name = f.properties.NAME || f.properties.name;
     if (!name || name === 'Antarctica') continue;
     const h = nameHash(name);
-    const gdp = gdpMap[name] || 30 + (h % 120);
-    const pop = popMap[name] || 3000000 + (h % 20000000);
+    const gdp = gdpMap[dataKey(name)] || 30 + (h % 120);
+    const pop = popMap[dataKey(name)] || 3000000 + (h % 20000000);
     const base = {
       name,
       cn: (window.__chineseNames && window.__chineseNames[name]) || name,

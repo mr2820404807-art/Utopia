@@ -9,8 +9,8 @@ import json, math, os
 
 SRC = 'ne-temp/geojson/ne_10m_admin_1_states_provinces.geojson'
 OUT = 'data/provinces_v2.geojson'
-# 每国保留上限：按国家行政区总数分档
-CAPS = [(60, 34), (34, 22), (20, 14), (10, 10), (4, 6), (0, 4)]  # (总数下限, 保留数)
+# 每国保留上限：按国家行政区总数分档（档位放宽，保留更多行政区划）
+CAPS = [(120, 48), (60, 36), (30, 24), (15, 16), (6, 10), (0, 0)]  # (总数下限, 保留数, 0=全留)
 
 def ring_area_bbox(ring):
     a = 0
@@ -61,10 +61,28 @@ def thin_geom(geom, max_pts):
     return {'type': 'MultiPolygon', 'coordinates': [th(p) for p in geom['coordinates']]}
 
 d = json.load(open(SRC, encoding='utf-8'))
+
+# 国家名归一化：admin_1 的 admin 字段用长名（如 United States of America），
+# 而游戏中国家键用 admin_0 的 NAME 短名（United States）——统一映射到短名
+COUNTRIES = 'ne-temp/geojson/ne_50m_admin_0_countries.geojson'
+cgeo = json.load(open(COUNTRIES, encoding='utf-8'))
+longToShort = {}
+shortNames = set()
+for f in cgeo['features']:
+    p = f['properties']
+    nm = p.get('NAME') or ''
+    ad = p.get('ADMIN') or ''
+    if nm: shortNames.add(nm)
+    if ad and nm: longToShort[ad] = nm
+
+def normalize_admin(admin):
+    if admin in shortNames: return admin
+    return longToShort.get(admin, admin)
+
 by_country = {}
 for f in d['features']:
     p = f['properties']
-    admin = p.get('admin') or ''
+    admin = normalize_admin(p.get('admin') or '')
     name = p.get('name') or ''
     if not admin or not name or admin == 'Antarctica':
         continue
@@ -77,10 +95,16 @@ for f in d['features']:
 kept = []
 for admin, lst in by_country.items():
     lst.sort(key=lambda x: (x['sr'], -x['area']))
-    cap = next((c for lo, c in CAPS if len(lst) > lo), 4)
-    for item in lst[:cap]:
-        if item['area'] < 0.005:  # 过小碎屑（<~0.005平方度）丢弃
-            continue
+    cap = next((c for lo, c in CAPS if len(lst) > lo), 0)
+    # 行政区多的国家存在大量市镇级碎块：按面积过滤，只留主要区划
+    min_area = 0.02 if len(lst) <= 20 else (0.06 if len(lst) <= 60 else 0.12)
+    kept_list = [it for it in lst if it['area'] >= min_area]
+    if not kept_list:
+        # 小国全部低于面积线：保留面积最大的前 4 个，避免整个国家无省可分
+        kept_list = lst[:4]
+    if cap:
+        kept_list = kept_list[:cap]
+    for item in kept_list:
         # 大几何抽稀：限制每环 240 顶点
         geom = thin_geom(item['geom'], 240)
         kept.append({
