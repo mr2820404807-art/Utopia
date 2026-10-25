@@ -5,7 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>乌托邦</title>
 <script>
-// file:// 直接打开的友好提示（此脚本为传统内联脚本，模块被浏览器拦截时也能执行）
+// 前置错误捕获 + file:// 直接打开的友好提示（传统内联脚本，模块失败时也能执行）
+window.__earlyErrors = [];
+window.addEventListener('error', function (e) {
+  window.__earlyErrors.push((e.message || '') + ' @' + (e.filename || '').split('/').pop() + ':L' + (e.lineno || 0));
+  var box = document.getElementById('js-error-box');
+  if (box) { box.style.display = 'block'; box.textContent = 'ERROR: ' + e.message + ' @L' + e.lineno; }
+});
+window.addEventListener('unhandledrejection', function (e) {
+  window.__earlyErrors.push('PROMISE: ' + (e.reason && e.reason.message || e.reason));
+});
 (function () {
   if (location.protocol !== 'file:') return;
   var t = setInterval(function () {
@@ -659,7 +668,7 @@ let gameState = 'menu';
 let confirmedCountry = null;
 let earthStopped = false;
 
-let camAnim = { active: false, t: 0, from: null, to: null, dur: 1200 };
+let camAnim = { active: false, t: 0, from: null, to: null, dur: 1200, lastTick: 0 };
 let earthAnim = { active: false, t: 0, from: 0, to: 0, dur: 1200 };
 let earthAnimX = { active: false, t: 0, from: 0, to: 0, dur: 1200 };
 let rotAnim = { active: false, t: 0, from: 0, to: 0, dur: 1200 };
@@ -2390,10 +2399,18 @@ function confirmSelection() {
       rotAnim.active = true;
       const targetRotX = avgLat * Math.PI / 180;
       rotAnimX.from = earthGroup.rotation.x;
-      rotAnimX.to = targetRotX;
+      rotAnimX.to = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotX));
       rotAnimX.t = 0;
       rotAnimX.lastTick = performance.now();
       rotAnimX.active = true;
+      // 镜头俯冲：拉近到该国上空，形成完整的过渡动画
+      camAnim.from = camera.position.clone();
+      const diveDist = 1.45;
+      camAnim.to = new THREE.Vector3(0, 0.22 * diveDist, diveDist);
+      camAnim.t = 0;
+      camAnim.lastTick = performance.now();
+      camAnim.active = true;
+      camAnim.dur = 1600;
     }
   }
 
@@ -2998,9 +3015,9 @@ function aohInitCountryData(countryName) {
   refreshOfficerPool();
   initProvinceBuildings();
   aohInitTerritoryOwnership(countryName);
-  buildAdjacency();          // 陆路 + 海路邻接图
+  buildAdjacency();          // 陆路 + 海路邻接图（分帧构建，不卡动画）
   initNations(countryName);  // 全国家模型（含玩家初始驻军、AI、关系、列强）
-  refreshAllArmyMarkers();   // 显示世界各国驻军
+  refreshAllArmyMarkers();   // 显示世界各国驻军（分帧）
   aohUpdateResources();      // 刷新军团数等顶栏显示
   aohNotify('🌍 ' + (window.__chineseNames?.[countryName] || countryName) + ' · 世界已苏醒，列强环伺');
 }
@@ -3571,10 +3588,18 @@ function updateArmyMarker(provinceName, troops, countryCode) {
 
 function refreshAllArmyMarkers() {
   while (armyMarkers.children.length > 0) armyMarkers.remove(armyMarkers.children[0]);
-  for (const prov in armies) {
-    const g = armies[prov];
-    if (g && g.troops > 0) createArmyMarker(prov, g.troops, g.owner);
-  }
+  // 分帧创建：700+ 标记一次性建会卡帧，按每帧 8ms 预算分批
+  const list = Object.keys(armies).filter(p => armies[p] && armies[p].troops > 0);
+  let idx = 0;
+  const step = () => {
+    const t0 = performance.now();
+    while (idx < list.length && performance.now() - t0 < 8) {
+      const p = list[idx++];
+      createArmyMarker(p, armies[p].troops, armies[p].owner);
+    }
+    if (idx < list.length) requestAnimationFrame(step);
+  };
+  step();
 }
 
 function showArmyPanel(provinceName) {

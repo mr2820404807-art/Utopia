@@ -37,73 +37,141 @@ function adminOfProvince(provinceName) {
   return adminIndex ? adminIndex[provinceName] : '';
 }
 
+// 分帧构建：3000+ 省的坐标扫描与配对如果同步做会阻塞主线程半秒以上，
+// 开局动画会冻住一瞬。这里按每片 ≤40ms 拆到多帧执行，期间寻路会暂时
+// 走不到（findPathDays 返回 null → 进攻转空投/移动回原地的兜底已存在）。
 export function buildAdjacency() {
-  const geo = window.__provincesGeoJSON;
-  if (!geo) return;
-  clearObj(provinceAdj); clearObj(seaAdj); clearObj(provinceCenter);
+  return new Promise((resolve) => {
+    const geo = window.__provincesGeoJSON;
+    if (!geo) { resolve(); return; }
+    clearObj(provinceAdj); clearObj(seaAdj); clearObj(provinceCenter);
 
-  const items = [];
-  for (const f of geo.features) {
-    const name = f.properties.name;
-    if (!name || !f.geometry) continue;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    let cx = 0, cy = 0, cn = 0;
-    const scan = (coords) => {
-      for (const c of coords) {
-        if (Array.isArray(c[0])) scan(c);
-        else {
-          minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
-          minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
-          cx += c[0]; cy += c[1]; cn++;
+    // 阶段1：逐省扫描坐标（分帧）
+    const items = [];
+    const feats = geo.features;
+    let fi = 0;
+    const scanOne = (f) => {
+      const name = f.properties.name;
+      if (!name || !f.geometry) return;
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      let cx = 0, cy = 0, cn = 0;
+      const scan = (coords) => {
+        for (const c of coords) {
+          if (Array.isArray(c[0])) scan(c);
+          else {
+            minX = Math.min(minX, c[0]); maxX = Math.max(maxX, c[0]);
+            minY = Math.min(minY, c[1]); maxY = Math.max(maxY, c[1]);
+            cx += c[0]; cy += c[1]; cn++;
+          }
+        }
+      };
+      scan(f.geometry.coordinates);
+      if (cn === 0) return;
+      provinceCenter[name] = { lon: cx / cn, lat: cy / cn };
+      items.push({ name, box: { minX, maxX, minY, maxY }, coastal: false });
+    };
+    const phase1 = () => {
+      const t0 = performance.now();
+      while (fi < feats.length && performance.now() - t0 < 40) scanOne(feats[fi++]);
+      if (fi < feats.length) { setTimeout(phase1, 0); return; }
+      phase2();
+    };
+
+    // 阶段2：空间网格配对（分帧；网格必须在 phase1 填完 items 后才建）
+    const MARGIN = 0.25, CELL = 4;
+    let grid = null;
+    const cellsOf = (box) => {
+      const out = [];
+      const x0 = Math.floor((box.minX - MARGIN) / CELL), x1 = Math.floor((box.maxX + MARGIN) / CELL);
+      const y0 = Math.floor((box.minY - MARGIN) / CELL), y1 = Math.floor((box.maxY + MARGIN) / CELL);
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) out.push(cx + ',' + cy);
+      return out;
+    };
+    const overlap = (a, b, m) => !(a.maxX < b.minX - m || b.maxX < a.minX - m || a.maxY < b.minY - m || b.maxY < a.minY - m);
+    let ii = 0;
+    const phase2 = () => {
+      if (!grid) {
+        grid = new Map();
+        items.forEach((it) => {
+          for (const k of cellsOf(it.box)) {
+            let arr = grid.get(k);
+            if (!arr) grid.set(k, arr = []);
+            arr.push(it);
+          }
+        });
+      }
+      const t0 = performance.now();
+      while (ii < items.length && performance.now() - t0 < 40) {
+        const a = items[ii++];
+        if (!provinceAdj[a.name]) provinceAdj[a.name] = new Set();
+        for (const k of cellsOf(a.box)) {
+          const arr = grid.get(k);
+          if (!arr) continue;
+          for (const b of arr) {
+            if (b === a) continue;
+            if (!overlap(a.box, b.box, MARGIN)) continue;
+            if (lonLatDist(provinceCenter[a.name], provinceCenter[b.name]) > 8) continue;
+            provinceAdj[a.name].add(b.name);
+            provinceAdj[b.name] = provinceAdj[b.name] || new Set();
+            provinceAdj[b.name].add(a.name);
+          }
         }
       }
+      if (ii < items.length) { setTimeout(phase2, 0); return; }
+      phase3();
     };
-    scan(f.geometry.coordinates);
-    if (cn === 0) continue;
-    provinceCenter[name] = { lon: cx / cn, lat: cy / cn };
-    items.push({ name, box: { minX, maxX, minY, maxY }, coastal: false });
-  }
 
-  // 陆路：bbox 贴近 + 中心距 < 8°（过滤跨大区误连）
-  const byName = {};
-  items.forEach(it => byName[it.name] = it);
-  const overlap = (a, b, m) => !(a.maxX < b.minX - m || b.maxX < a.minX - m || a.maxY < b.minY - m || b.maxY < a.minY - m);
-  for (let i = 0; i < items.length; i++) {
-    const a = items[i];
-    if (!provinceAdj[a.name]) provinceAdj[a.name] = new Set();
-    for (let j = i + 1; j < items.length; j++) {
-      const b = items[j];
-      if (!overlap(a.box, b.box, 0.25)) continue;
-      const d = lonLatDist(provinceCenter[a.name], provinceCenter[b.name]);
-      if (d > 8) continue;
-      if (!provinceAdj[b.name]) provinceAdj[b.name] = new Set();
-      provinceAdj[a.name].add(b.name);
-      provinceAdj[b.name].add(a.name);
-    }
-  }
-
-  // 海路：沿海省中心距 < 15°，取最近 4 条
-  for (const it of items) {
-    const pd = provinceData[it.name];
-    it.coastal = !!(pd && pd.isCoastal);
-    if (!it.coastal && !pd) {
-      // 省份数据未初始化时用国家沿海表兜底
-      const admin = adminOfProvince(it.name);
-      if (admin && coastalCountries.has(admin)) it.coastal = true;
-    }
-  }
-  const coastalItems = items.filter(it => it.coastal);
-  for (const a of coastalItems) {
-    const cand = [];
-    for (const b of coastalItems) {
-      if (a.name === b.name) continue;
-      if (provinceAdj[a.name] && provinceAdj[a.name].has(b.name)) continue;
-      const d = lonLatDist(provinceCenter[a.name], provinceCenter[b.name]);
-      if (d < 15) cand.push([b.name, d]);
-    }
-    cand.sort((x, y) => x[1] - y[1]);
-    seaAdj[a.name] = new Set(cand.slice(0, 4).map(c => c[0]));
-  }
+    // 阶段3：海路（沿海子集，分帧）
+    const phase3 = () => {
+      const t0 = performance.now();
+      // 沿海标记
+      for (const it of items) {
+        const pd = provinceData[it.name];
+        it.coastal = !!(pd && pd.isCoastal);
+        if (!it.coastal && !pd) {
+          const admin = adminOfProvince(it.name);
+          if (admin && coastalCountries.has(admin)) it.coastal = true;
+        }
+      }
+      const coastal = items.filter(it => it.coastal);
+      for (let ci = 0; ci < coastal.length; ci++) {
+        if (performance.now() - t0 > 40) {
+          setTimeout(() => phase3From(ci), 0);
+          return;
+        }
+        const a = coastal[ci];
+        const cand = [];
+        for (const b of coastal) {
+          if (a === b) continue;
+          if (provinceAdj[a.name] && provinceAdj[a.name].has(b.name)) continue;
+          const d = lonLatDist(provinceCenter[a.name], provinceCenter[b.name]);
+          if (d < 15) cand.push([b.name, d]);
+        }
+        cand.sort((x, y) => x[1] - y[1]);
+        seaAdj[a.name] = new Set(cand.slice(0, 4).map(c => c[0]));
+      }
+      resolve();
+    };
+    const phase3From = (start) => {
+      const t0 = performance.now();
+      const coastal = items.filter(it => it.coastal);
+      for (let ci = start; ci < coastal.length; ci++) {
+        if (performance.now() - t0 > 40) { setTimeout(() => phase3From(ci), 0); return; }
+        const a = coastal[ci];
+        const cand = [];
+        for (const b of coastal) {
+          if (a === b) continue;
+          if (provinceAdj[a.name] && provinceAdj[a.name].has(b.name)) continue;
+          const d = lonLatDist(provinceCenter[a.name], provinceCenter[b.name]);
+          if (d < 15) cand.push([b.name, d]);
+        }
+        cand.sort((x, y) => x[1] - y[1]);
+        seaAdj[a.name] = new Set(cand.slice(0, 4).map(c => c[0]));
+      }
+      resolve();
+    };
+    phase1();
+  });
 }
 
 // ---------- 寻路（陆 1 天/跳，海 2 天/跳）----------
