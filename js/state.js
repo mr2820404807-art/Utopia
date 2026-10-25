@@ -137,7 +137,7 @@ export function resetAllState() {
   clearObj(truces); clearArray(alliances); clearObj(justifying);
   warIdCounter.n = 1;
   gameCtx.totalProvinces = 0; gameCtx.ended = false; gameCtx.playerDead = false; gameCtx.worldTension = 0;
-  clearObj(provinceAdj); clearObj(seaAdj); clearObj(provinceCenter);
+  // 注意：provinceAdj/seaAdj/provinceCenter 是静态地理数据，跨局复用，不在重置范围
 }
 
 // ---- 预算/贷款/动荡/围城/法律 存档分节 ----

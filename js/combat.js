@@ -44,7 +44,8 @@ export function buildAdjacency() {
   return new Promise((resolve) => {
     const geo = window.__provincesGeoJSON;
     if (!geo) { resolve(); return; }
-    clearObj(provinceAdj); clearObj(seaAdj); clearObj(provinceCenter);
+    // 邻接表只取决于地理数据，纯静态：已构建则直接复用（引导页期间预构建一次）
+    if (Object.keys(provinceCenter).length > 0) { resolve(); return; }
 
     // 阶段1：逐省扫描坐标（分帧）
     const items = [];
@@ -72,8 +73,8 @@ export function buildAdjacency() {
     };
     const phase1 = () => {
       const t0 = performance.now();
-      while (fi < feats.length && performance.now() - t0 < 40) scanOne(feats[fi++]);
-      if (fi < feats.length) { setTimeout(phase1, 0); return; }
+      while (fi < feats.length && performance.now() - t0 < 12) scanOne(feats[fi++]);
+      if (fi < feats.length) { setTimeout(phase1, 16); return; }
       phase2();
     };
 
@@ -101,7 +102,7 @@ export function buildAdjacency() {
         });
       }
       const t0 = performance.now();
-      while (ii < items.length && performance.now() - t0 < 40) {
+      while (ii < items.length && performance.now() - t0 < 12) {
         const a = items[ii++];
         if (!provinceAdj[a.name]) provinceAdj[a.name] = new Set();
         for (const k of cellsOf(a.box)) {
@@ -117,7 +118,7 @@ export function buildAdjacency() {
           }
         }
       }
-      if (ii < items.length) { setTimeout(phase2, 0); return; }
+      if (ii < items.length) { setTimeout(phase2, 16); return; }
       phase3();
     };
 
@@ -135,8 +136,8 @@ export function buildAdjacency() {
       }
       const coastal = items.filter(it => it.coastal);
       for (let ci = 0; ci < coastal.length; ci++) {
-        if (performance.now() - t0 > 40) {
-          setTimeout(() => phase3From(ci), 0);
+        if (performance.now() - t0 > 12) {
+          setTimeout(() => phase3From(ci), 16);
           return;
         }
         const a = coastal[ci];
@@ -156,7 +157,7 @@ export function buildAdjacency() {
       const t0 = performance.now();
       const coastal = items.filter(it => it.coastal);
       for (let ci = start; ci < coastal.length; ci++) {
-        if (performance.now() - t0 > 40) { setTimeout(() => phase3From(ci), 0); return; }
+        if (performance.now() - t0 > 12) { setTimeout(() => phase3From(ci), 16); return; }
         const a = coastal[ci];
         const cand = [];
         for (const b of coastal) {

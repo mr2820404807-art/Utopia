@@ -15,6 +15,24 @@ window.addEventListener('error', function (e) {
 window.addEventListener('unhandledrejection', function (e) {
   window.__earlyErrors.push('PROMISE: ' + (e.reason && e.reason.message || e.reason));
 });
+// 引导页进度刷新：贴图 60% + 地图 40%，全部就绪后揭幕主菜单
+window.__bootTick = setInterval(function () {
+  var tex = window.__bootTex || 0, geo = window.__bootGeo == null ? 0 : window.__bootGeo;
+  var pct = Math.min(100, Math.round(tex * 60 + geo * 40));
+  var fill = document.getElementById('boot-bar-fill');
+  var status = document.getElementById('boot-status');
+  if (fill) fill.style.width = pct + '%';
+  if (status) status.textContent = pct >= 100 ? '就绪' : (tex < 1 ? '正在处理高清贴图… ' + Math.round(tex * 100) + '%' : (window.__bootStage || '正在加载世界地图…'));
+  if (tex >= 1 && geo >= 1) {
+    clearInterval(window.__bootTick);
+    setTimeout(function () {
+      var boot = document.getElementById('boot-screen');
+      var menu = document.getElementById('menu-screen');
+      if (boot) { boot.classList.add('hidden'); setTimeout(function () { boot.remove(); }, 900); }
+      if (menu) menu.classList.remove('hidden');
+    }, 450);
+  }
+}, 150);
 (function () {
   if (location.protocol !== 'file:') return;
   var t = setInterval(function () {
@@ -230,6 +248,15 @@ canvas{display:block}
 .diplo-row .diplo-rel.neutral{background:rgba(180,180,180,.1);color:#aaa}
 .diplo-row .diplo-rel.rival{background:rgba(255,100,80,.15);color:#dd8877}
 
+#boot-screen{position:fixed;inset:0;z-index:300;background:radial-gradient(ellipse at 50% 60%,rgba(10,16,34,.82),rgba(4,6,14,.96));display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s}
+#boot-screen.hidden{opacity:0;pointer-events:none}
+#boot-title{font-size:64px;font-weight:300;color:#ddeeff;letter-spacing:26px;text-indent:26px;text-shadow:0 0 70px rgba(100,160,220,.75),0 2px 24px rgba(0,0,0,.9);margin-bottom:10px}
+#boot-sub{font-size:12px;color:rgba(170,195,230,.55);letter-spacing:6px;margin-bottom:56px}
+#boot-bar{width:280px;height:3px;background:rgba(70,95,140,.35);border-radius:2px;overflow:hidden}
+#boot-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#7fb4e8,#c9e6ff);border-radius:2px;transition:width .25s;box-shadow:0 0 12px rgba(140,190,255,.8)}
+#boot-status{margin-top:16px;font-size:12px;color:rgba(160,185,220,.6);letter-spacing:2px;font-family:'Courier New',monospace}
+#loading{display:none !important}
+
 #select-box{position:fixed;border:1px solid rgba(100,200,255,.5);background:rgba(100,200,255,.08);pointer-events:none;display:none;z-index:50}
 #pause-indicator{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:60;color:rgba(200,220,255,.7);font-size:32px;letter-spacing:8px;font-weight:300;pointer-events:none;text-shadow:0 0 20px rgba(0,0,0,.8);opacity:0;transition:opacity .3s}
 #pause-indicator.visible{opacity:1}
@@ -244,7 +271,14 @@ body{overflow:hidden}
 </head>
 <body>
 
-<div id="menu-screen">
+<div id="boot-screen">
+  <div id="boot-title">乌托邦</div>
+  <div id="boot-sub">UTOPIA · 3D STRATEGY</div>
+  <div id="boot-bar"><div id="boot-bar-fill"></div></div>
+  <div id="boot-status">正在初始化…</div>
+</div>
+
+<div id="menu-screen" class="hidden">
   <div class="menu-title">乌 托 邦</div>
   <div class="menu-sub">UTOPIA · 3D STRATEGY</div>
   <button class="menu-btn" id="btn-start">开 始 游 戏</button>
@@ -436,7 +470,7 @@ import { nameHash, coastalCountries, gdpMap, popMap, dataKey } from './js/data.j
 import {
   UI, aohRes, playerMods, armies, provinceData, buildingQueue, techProgress, aohTechBonuses,
   officerPool, countryFlags, nations, wars, battles, justifying, gameCtx,
-  provinceAdj, seaAdj, resetAllState, runTicks, runDay, saveAllSections, loadAllSections, getRelation, addRelation, alliances,
+  provinceAdj, seaAdj, provinceCenter, resetAllState, runTicks, runDay, saveAllSections, loadAllSections, getRelation, addRelation, alliances,
   playerPolicy, playerLoans, provinceUnrest, playerLaws,
 } from './js/state.js';
 import { initNations, transferProvince, playerNation, nationPower } from './js/nations.js';
@@ -1147,8 +1181,8 @@ const bumpMap = createBumpMap();
         d[i + 2] = Math.min(255, b * f);
       }
       offset = end;
+      window.__bootTex = offset / totalPixels;
       if (offset < totalPixels) {
-        document.getElementById('loading').textContent = '亮度平衡中... ' + Math.round(offset / totalPixels * 100) + '%';
         setTimeout(processChunk, 0);
       } else {
         ctx.putImageData(imageData, 0, 0);
@@ -1162,8 +1196,7 @@ const bumpMap = createBumpMap();
         const earth = new THREE.Mesh(earthGeo, earthMat);
         earth.name = 'earth';
         earthGroup.add(earth);
-        document.getElementById('loading').style.opacity = '0';
-        setTimeout(() => { const el = document.getElementById('loading'); if (el) el.remove(); }, 500);
+        window.__bootTex = 1;
         console.log('贴图加载完成: ' + cvs.width + 'x' + cvs.height);
       }
     }
@@ -1204,6 +1237,8 @@ function createBorderOverlay() {
     });
   }
 
+  window.__bootGeo = 0;
+  window.__bootStage = '正在加载世界地图…';
   Promise.all([
     fetchGeoJSON([localCountriesUrl, cdnCountriesUrl]),
     fetchGeoJSON([localProvincesUrl, localProvincesFallbackUrl, cdnProvincesUrl]),
@@ -1843,7 +1878,12 @@ function createBorderOverlay() {
 
     window.__latLonToVec3 = latLonToVec3;
   })
-  .catch(err => { console.warn('边界数据加载失败:', err); });
+  .then(() => {
+    window.__bootGeo = 1;
+    window.__bootStage = '正在构建行军网络…';
+    buildAdjacency().then(() => { window.__bootStage = '地图就绪'; });
+  })
+  .catch(err => { console.warn('边界数据加载失败:', err); window.__bootGeo = 1; });
 }
 createBorderOverlay();
 
@@ -2397,7 +2437,9 @@ function confirmSelection() {
       rotAnim.t = 0;
       rotAnim.lastTick = performance.now();
       rotAnim.active = true;
-      const targetRotX = avgLat * Math.PI / 180;
+      // 相机自 y=0.22d 俯视，视线与球面交点在星下点偏北——纬度要扣掉俯角才能真正居中
+      const CAM_PITCH = Math.atan(0.22);
+      const targetRotX = avgLat * Math.PI / 180 - CAM_PITCH;
       rotAnimX.from = earthGroup.rotation.x;
       rotAnimX.to = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, targetRotX));
       rotAnimX.t = 0;
@@ -2565,6 +2607,8 @@ scene.add(hemiLight);
 
 function animate() {
   requestAnimationFrame(animate);
+  window.__frameCount = (window.__frameCount || 0) + 1;
+  try {
   tickTime(performance.now());
 
   if (gameState === 'menu') {
@@ -2692,6 +2736,7 @@ function animate() {
   flushTerritoryRepaint(performance.now());
   controls.update();
   composer.render();
+  } catch (e) { if (!window.__animErr) window.__animErr = e.message; }
 }
 animate();
 
@@ -2750,6 +2795,11 @@ document.getElementById('btn-open-saves').addEventListener('click', () => {
 
 document.getElementById('btn-to-menu').addEventListener('click', () => {
   document.getElementById('pause-overlay').classList.remove('visible');
+  document.getElementById('select-phase-hint').classList.remove('visible');
+  document.getElementById('confirm-btn').classList.remove('visible');
+  document.getElementById('back-btn').classList.remove('visible');
+  document.getElementById('preview-flag').classList.remove('visible');
+  document.getElementById('preview-gradient').classList.remove('visible');
   selectRegion(null);
   gameState = 'menu';
   earthStopped = false;
@@ -3378,7 +3428,7 @@ function aohLoadGame(slot) {
         rotAnim.to = earthGroup.rotation.y + diffY;
         rotAnim.t = 0; rotAnim.lastTick = performance.now(); rotAnim.active = true;
         rotAnimX.from = earthGroup.rotation.x;
-        rotAnimX.to = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, lat * Math.PI / 180));
+        rotAnimX.to = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, lat * Math.PI / 180 - Math.atan(0.22)));
         rotAnimX.t = 0; rotAnimX.lastTick = performance.now(); rotAnimX.active = true;
         camAnim.from = camera.position.clone();
         camAnim.to = new THREE.Vector3(0, 0.3, 2.2);
@@ -3593,7 +3643,7 @@ function refreshAllArmyMarkers() {
   let idx = 0;
   const step = () => {
     const t0 = performance.now();
-    while (idx < list.length && performance.now() - t0 < 8) {
+    while (idx < list.length && performance.now() - t0 < 6) {
       const p = list[idx++];
       createArmyMarker(p, armies[p].troops, armies[p].owner);
     }
@@ -4078,7 +4128,11 @@ console.log('3D HD Earth - AOH3 Style · 模块化一期改造');
 window.__debug = {
   startAs(en, cn) {
     if (gameState === 'menu') enterSelecting();
-    selectedCountry = { enName: en, cnName: cn || en, level: 'country', feature: null };
+    // 与真实点击一致：带上国家 feature，使入场旋转/俯冲动画走完整路径
+    const feat = window.__countriesGeoJSON
+      ? window.__countriesGeoJSON.features.find(f => (f.properties.NAME || f.properties.name) === en) || null
+      : null;
+    selectedCountry = { enName: en, cnName: cn || en, level: 'country', feature: feat };
     confirmSelection();
   },
   state() {
@@ -4118,6 +4172,16 @@ window.__debug = {
   mapMode: (m) => setMapMode(m),
   adjacency(prov) {
     return { land: [...(provinceAdj[prov] || [])], sea: [...(seaAdj[prov] || [])] };
+  },
+  earth() {
+    return { rx: earthGroup.rotation.x, ry: earthGroup.rotation.y, camY: camera.position.y, camZ: camera.position.z, camX: camera.position.x,
+      anim: { rot: rotAnim.active ? +(rotAnim.t / rotAnim.dur).toFixed(2) : 'off', rotX: rotAnimX.active ? +(rotAnimX.t / rotAnimX.dur).toFixed(2) : 'off', cam: camAnim.active ? +(camAnim.t / camAnim.dur).toFixed(2) : 'off',
+        rotTo: +(rotAnim.to * 180 / Math.PI).toFixed(0), rotXTo: +(rotAnimX.to * 180 / Math.PI).toFixed(0) } };
+  },
+  buildProgress() {
+    let edges = 0;
+    for (const k in provinceAdj) edges += provinceAdj[k].size;
+    return { centers: Object.keys(provinceCenter).length, landNodes: Object.keys(provinceAdj).length, landEdges: edges / 2, seaNodes: Object.keys(seaAdj).length };
   },
 };
 </script>
