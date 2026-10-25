@@ -9,8 +9,12 @@ import json, math, os
 
 SRC = 'ne-temp/geojson/ne_10m_admin_1_states_provinces.geojson'
 OUT = 'data/provinces_v2.geojson'
-# 每国保留上限：按国家行政区总数分档（档位放宽，保留更多行政区划）
-CAPS = [(120, 48), (60, 36), (30, 24), (15, 16), (6, 10), (0, 0)]  # (总数下限, 保留数, 0=全留)
+# 每国保留上限：按国家行政区总数分档。
+# 注意：中国33个省级行政区/美国51州是合理粒度，不能裁——上限只针对
+# 市镇级碎粒国家（斯洛文尼亚193个市镇、英国232个区）
+# ≤60 一律全保留（中国33省/美国51州/印度36邦都是合理省级粒度），
+# 上限只针对市镇级碎粒国家（斯洛文尼亚193个市镇、英国232个区）
+CAPS = [(120, 64), (60, 52), (0, 0)]  # (总数下限, 保留数, 0=全留)
 
 def ring_area_bbox(ring):
     a = 0
@@ -86,6 +90,9 @@ for f in d['features']:
     name = p.get('name') or ''
     if not admin or not name or admin == 'Antarctica':
         continue
+    # 台湾的县区划剔除：游戏对台湾有专门的单省逻辑（isPointInTaiwan）
+    if p.get('admin') == 'Taiwan':
+        continue
     sr = p.get('scalerank') or 10
     area, bb = geom_area_bbox(f['geometry'])
     by_country.setdefault(admin, []).append({
@@ -97,7 +104,7 @@ for admin, lst in by_country.items():
     lst.sort(key=lambda x: (x['sr'], -x['area']))
     cap = next((c for lo, c in CAPS if len(lst) > lo), 0)
     # 行政区多的国家存在大量市镇级碎块：按面积过滤，只留主要区划
-    min_area = 0.02 if len(lst) <= 20 else (0.06 if len(lst) <= 60 else 0.12)
+    min_area = 0.02 if len(lst) <= 40 else (0.06 if len(lst) <= 120 else 0.12)
     kept_list = [it for it in lst if it['area'] >= min_area]
     if not kept_list:
         # 小国全部低于面积线：保留面积最大的前 4 个，避免整个国家无省可分
@@ -112,11 +119,6 @@ for admin, lst in by_country.items():
             'properties': {'name': item['name'], 'admin': admin},
             'geometry': round_geom(geom),
         })
-
-# 台湾特殊处理：admin 改为 China（与现有游戏逻辑一致）
-for f in kept:
-    if f['properties']['admin'] == 'Taiwan':
-        f['properties']['admin'] = 'China'
 
 out = {'type': 'FeatureCollection', 'features': kept}
 json.dump(out, open(OUT, 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
