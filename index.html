@@ -3187,41 +3187,13 @@ scene.add(ambientLight);
 const hemiLight = new THREE.HemisphereLight(0x99bbee, 0x223344, 0.16);
 scene.add(hemiLight);
 
-// 太阳本体：核心亮斑 + 大范围暖辉（加法混合）
-// 光照跟随相机视角（文明5/6式舞台光）：无论怎么拖动地球，正对镜头的一面永远是白天，
-// 晨昏线只在球体边缘——否则玩家拖动地球时"太阳照不到看见的面"，观感即'光做反了'
+// 太阳本体：宇宙中的固定天体（与星空同属绝对参考系）
+// 拖动地球时太阳不动、晨昏线固定——转到夜面看到城市灯光，天体逻辑自洽
 const sunPivot = new THREE.Group();
 scene.add(sunPivot);
-const SUN_DIST = 38;
-const SUN_DIR0 = new THREE.Vector3(1, 0.34, 0.62).normalize();
-const __camDir = new THREE.Vector3();
-const __rightDir = new THREE.Vector3();
-const __worldUp = new THREE.Vector3(0, 1, 0);
-const __sunDir = new THREE.Vector3();
-function updateSunFollow() {
-  __camDir.copy(camera.position).normalize();
-  __rightDir.crossVectors(__worldUp, __camDir).normalize();
-  // 光照方向：视角右上方 → 照亮正对镜头的面（略偏右），晨昏线在球体左右边缘
-  __sunDir.copy(__camDir).multiplyScalar(0.82)
-    .addScaledVector(__rightDir, 0.5)
-    .addScaledVector(__worldUp, 0.28)
-    .normalize();
-  sunLight.position.copy(__sunDir).multiplyScalar(12);
-  // 太阳本体：固定在画面左上角（相机坐标系定位+恒定屏幕大小，作为视觉符号；
-  // 物理上"照亮正面的光源"必然在相机身后，画面内不可见，故太阳光斑单独安放）
-  const __fwd = new THREE.Vector3();
-  camera.getWorldDirection(__fwd);
-  const __scrRight = new THREE.Vector3().crossVectors(__fwd, __worldUp).normalize();
-  const __scrUp = new THREE.Vector3().crossVectors(__scrRight, __fwd).normalize();
-  const camDist = camera.position.length();
-  sunCore.position.copy(camera.position)
-    .addScaledVector(__fwd, camDist * 0.55)
-    .addScaledVector(__scrRight, -camDist * 0.5)
-    .addScaledVector(__scrUp, camDist * 0.3);
-  sunGlow.position.copy(sunCore.position);
-  sunGlow.scale.setScalar(camDist * 0.16);
-  sunCore.scale.setScalar(camDist * 0.05);
-}
+const SUN_DIST = 46;
+// 初始方向朝初始视角（美洲）偏右上：开屏即白天，太阳可见于画面右上方
+const SUN_DIR0 = new THREE.Vector3(0.30, 0.26, 0.92).normalize();
 function makeGlowTexture(inner, outer) {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
@@ -3234,18 +3206,25 @@ function makeGlowTexture(inner, outer) {
   g.fillRect(0, 0, 256, 256);
   return new THREE.CanvasTexture(c);
 }
-const sunCoreMat = new THREE.SpriteMaterial({ map: makeGlowTexture('rgba(255,252,240,1)', 'rgba(255,220,150,0.9)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+const sunCoreMat = new THREE.SpriteMaterial({ map: makeGlowTexture('rgba(255,252,240,1)', 'rgba(255,220,150,0.9)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true });
 const sunCore = new THREE.Sprite(sunCoreMat);
 sunCore.position.copy(SUN_DIR0).multiplyScalar(SUN_DIST);
 sunCore.scale.set(3.2, 3.2, 1);
 sunPivot.add(sunCore);
-const sunGlowMat = new THREE.SpriteMaterial({ map: makeGlowTexture('rgba(255,236,190,0.55)', 'rgba(255,190,110,0.28)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false });
+const sunGlowMat = new THREE.SpriteMaterial({ map: makeGlowTexture('rgba(255,236,190,0.55)', 'rgba(255,190,110,0.28)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: true });
 const sunGlow = new THREE.Sprite(sunGlowMat);
 sunGlow.position.copy(sunCore.position);
 sunGlow.scale.set(10, 10, 1);
 sunPivot.add(sunGlow);
 // 方向光挂在与太阳同方向
 const sunLight = new THREE.DirectionalLight(0xfff1d8, 1.45);
+sunLight.position.copy(SUN_DIR0).multiplyScalar(12);
+sunCore.position.copy(SUN_DIR0).multiplyScalar(SUN_DIST);
+sunGlow.position.copy(sunCore.position);
+// 太阳本体隐藏：固定天体光照下，"照亮正面"时太阳必在相机身后（画面外）——
+// 真实太空中也是如此。太阳方向由光照与晨昏线体现
+sunCore.visible = false;
+sunGlow.visible = false;
 sunLight.position.copy(SUN_DIR0).multiplyScalar(12);
 sunPivot.add(sunLight);
 window.__sunPivot = sunPivot;
@@ -3365,11 +3344,9 @@ function animate() {
   requestAnimationFrame(animate);
   window.__frameCount = (window.__frameCount || 0) + 1;
   try {
-  // 太阳跟随视角 + 更新地球昼夜 shader
+  // 太阳为固定天体：仅更新昼夜 shader 的视图空间方向（相机移动时随之变化）
   if (window.__sunPivot) {
-    updateSunFollow();
     window.__updateSunUniform();
-    // 大气散射太阳方向（世界空间）
     if (window.__atmoMats && window.__earthMatRef) {
       sunCore.getWorldPosition(__sunWorldDir).normalize();
       for (const am of window.__atmoMats) am.uniforms.uSunDirW.value.copy(__sunWorldDir);
@@ -3399,11 +3376,9 @@ function animate() {
     }
   }
 
+  // 星空固定为绝对参考系：拖动地球时宇宙不动（只有地球在转）
   const sg = scene.getObjectByName('starGroup');
-  if (sg) {
-    sg.rotation.y = earthGroup.rotation.y;
-    sg.rotation.x = earthGroup.rotation.x;
-  }
+  if (sg) sg.rotation.y += 0.00002;
 
   if (earthAnim.active) {
     const now = performance.now();
