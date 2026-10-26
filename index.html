@@ -57,7 +57,7 @@ canvas{display:block}
 ::-webkit-scrollbar-thumb{background:rgba(100,140,200,.3);border-radius:2px}
 
 #menu-screen{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s}
-#menu-screen.hidden{opacity:0;pointer-events:none}
+#menu-screen.hidden{opacity:0;pointer-events:none;visibility:hidden;transition:opacity .8s, visibility 0s .8s}
 #menu-screen .menu-title{font-size:48px;font-weight:300;color:#ddeeff;letter-spacing:8px;text-shadow:0 0 60px rgba(100,160,220,.6),0 2px 20px rgba(0,0,0,.8);margin-bottom:10px}
 #menu-screen .menu-sub{font-size:13px;color:rgba(180,200,230,.5);letter-spacing:3px;margin-bottom:60px;text-shadow:0 2px 10px rgba(0,0,0,.8)}
 #menu-screen .menu-btn{width:260px;padding:16px 0;margin:8px 0;border:1px solid rgba(100,160,220,.45);border-radius:12px;background:rgba(10,15,30,.65);backdrop-filter:blur(12px);color:#bbddee;font-size:16px;letter-spacing:4px;cursor:pointer;transition:all .25s}
@@ -159,7 +159,7 @@ canvas{display:block}
 #aoh-side-btns .sb-btn.researching{border-color:rgba(255,200,60,.5);animation:sbPulse 2s infinite}
 @keyframes sbPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,200,60,0)}50%{box-shadow:0 0 8px 2px rgba(255,200,60,.2)}}
 
-#zoom-distance{position:fixed;top:56px;left:50%;transform:translateX(-50%);color:rgba(180,200,230,.6);font-size:11px;font-family:'Courier New',monospace;z-index:10;pointer-events:none;background:rgba(0,0,0,.3);padding:4px 12px;border-radius:4px;display:none}
+#zoom-distance{position:fixed;top:56px;left:50%;transform:translateX(-50%);color:rgba(150,170,200,.35);font-size:10px;font-family:'Courier New',monospace;z-index:10;pointer-events:none;background:rgba(0,0,0,.3);padding:4px 12px;border-radius:4px;display:none}
 #zoom-distance.visible{display:block}
 
 #aoh-notifications{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;align-items:center;gap:6px;pointer-events:none}
@@ -249,7 +249,7 @@ canvas{display:block}
 .diplo-row .diplo-rel.rival{background:rgba(255,100,80,.15);color:#dd8877}
 
 #boot-screen{position:fixed;inset:0;z-index:300;background:radial-gradient(ellipse at 50% 60%,rgba(10,16,34,.82),rgba(4,6,14,.96));display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s}
-#boot-screen.hidden{opacity:0;pointer-events:none}
+#boot-screen.hidden{opacity:0;pointer-events:none;visibility:hidden}
 #boot-title{font-size:64px;font-weight:300;color:#ddeeff;letter-spacing:26px;text-indent:26px;text-shadow:0 0 70px rgba(100,160,220,.75),0 2px 24px rgba(0,0,0,.9);margin-bottom:10px}
 #boot-sub{font-size:12px;color:rgba(170,195,230,.55);letter-spacing:6px;margin-bottom:56px}
 #boot-bar{width:280px;height:3px;background:rgba(70,95,140,.35);border-radius:2px;overflow:hidden}
@@ -1312,6 +1312,9 @@ function buildParchmentAssets(countries, provinces, colorCanvasRef) {
   g.strokeStyle = 'rgba(140,105,60,0.25)';
   g.lineWidth = 7;
   g.stroke();
+  // 整体压暗：避免亮度超过 bloom 阈值泛光成白雾；老地图本就是暗黄褐色调
+  g.fillStyle = 'rgba(30,18,6,0.30)';
+  g.fillRect(0, 0, W, H);
   window.__parchmentTexCanvas = pc;
 
   // --- 羊皮纸领地色底层（政治模式的古典配色）---
@@ -1336,6 +1339,8 @@ function buildParchmentAssets(countries, provinces, colorCanvasRef) {
     g2.lineWidth = 1.8;
     g2.stroke();
   }
+  g2.fillStyle = 'rgba(30,18,6,0.30)';
+  g2.fillRect(0, 0, W, H);
   window.__parchmentBaseCanvas = pc2;
   window.__mapStyleReady = true;
   applyMapStyle(window.__mapStyle, true);
@@ -1354,25 +1359,33 @@ function applyMapStyle(style, silent) {
       t.anisotropy = 8;
       window.__parchmentThreeTex = t;
     }
-    mat.map = window.__parchmentThreeTex;
-    if (!mat.userData.__satBump) mat.userData.__satBump = mat.bumpMap;
+    // 平光渲染：emissiveMap 直出原色，不受昼夜光照影响（老地图质感）
+    if (!mat.userData.__satTex) mat.userData.__satTex = mat.map;
+    if (!mat.userData.__satEmissiveMap) mat.userData.__satEmissiveMap = mat.emissiveMap;
+    mat.map = null;
     mat.bumpMap = null;
-    mat.emissiveIntensity = 0;
+    mat.emissiveMap = window.__parchmentThreeTex;
+    mat.emissive = new THREE.Color(0xffffff);
+    mat.emissiveIntensity = 0.6;
     mat.needsUpdate = true;
-    ambientLight.intensity = 1.55;
-    sunLight.intensity = 0.5;
+    ambientLight.intensity = 0.34;
+    sunLight.intensity = 0.0;
     if (window.__cloudMat) window.__cloudMat.opacity = 0;
     window.__detailAllowed = false;
     if (window.__provinceBorderMat) window.__provinceBorderMat.color.setHex(0x6b4423);
+    window.__provinceBorderDim = 0.4;
     document.body.classList.add('theme-parchment');
   } else {
     if (mat.userData.__satTex) mat.map = mat.userData.__satTex;
     if (mat.userData.__satBump) mat.bumpMap = mat.userData.__satBump;
-    mat.emissiveIntensity = 1.35;
+    mat.emissiveMap = mat.userData.__satEmissiveMap || null;
+    mat.emissive = new THREE.Color(0xffcf9a);
+    mat.emissiveIntensity = 0.85;
     mat.needsUpdate = true;
     ambientLight.intensity = 0.34;
     sunLight.intensity = 2.3;
     if (window.__provinceBorderMat) window.__provinceBorderMat.color.setHex(0xffffff);
+    window.__provinceBorderDim = 1;
     window.__detailAllowed = true;
     document.body.classList.remove('theme-parchment');
   }
@@ -1450,8 +1463,9 @@ const bumpMap = createBumpMap();
           shader.fragmentShader = shader.fragmentShader
             .replace('void main() {', 'uniform vec3 uSunView;' + String.fromCharCode(10) + 'void main() {')
             .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-  float __dayFactor = clamp(dot(normalize(vNormal), normalize(uSunView)), 0.0, 1.0);
-  totalEmissiveRadiance *= (1.0 - __dayFactor * __dayFactor);`);
+  float sunDot = dot(normalize(normal), normalize(uSunView));
+  float sunDayFactor = smoothstep(-0.06, 0.22, sunDot);
+  totalEmissiveRadiance *= (1.0 - sunDayFactor);`);
           earthMat.userData.shader = shader;
         };
         window.__earthMatRef = earthMat;
@@ -1459,7 +1473,7 @@ const bumpMap = createBumpMap();
         if (window.__pendingCityTex) {
           earthMat.emissiveMap = window.__pendingCityTex;
           earthMat.emissive = new THREE.Color(0xffcf9a);
-          earthMat.emissiveIntensity = 1.35;
+          earthMat.emissiveIntensity = 0.85;
           earthMat.needsUpdate = true;
           window.__pendingCityTex = null;
         }
@@ -1546,7 +1560,7 @@ function createBorderOverlay() {
 
     function genPalette(n) {
       const cols = [];
-      for (let i = 0; i < n; i++) { const h = (i * 137.508) % 360; cols.push(`hsla(${h},50%,58%,0.25)`); }
+      for (let i = 0; i < n; i++) { const h = (i * 137.508) % 360; cols.push(`hsla(${h},36%,54%,0.22)`); }
       return cols;
     }
     const PALETTE = genPalette(24);
@@ -1771,15 +1785,17 @@ function createBorderOverlay() {
         if (!cn) continue;
         const px = (cx / cn + 180) / 360 * 2048;
         const py = (90 - cy / cn) / 180 * 1024;
-        const r = 0.8 + (h % 16) / 8;        // 0.8~2.8 px
-        const alpha = 0.3 + (h % 60) / 100;  // 0.3~0.9
-        const grad = clx.createRadialGradient(px, py, 0, px, py, r * 2.2);
+        // 只点亮"较大聚落"：45% 的小省跳过，避免满地图光斑
+        if ((h % 100) < 45) continue;
+        const r = 0.4 + (h % 10) / 14;        // 0.4~1.1 px
+        const alpha = 0.16 + (h % 40) / 220;  // 0.16~0.34
+        const grad = clx.createRadialGradient(px, py, 0, px, py, r * 1.9);
         grad.addColorStop(0, 'rgba(255,214,150,' + alpha + ')');
         grad.addColorStop(0.4, 'rgba(255,180,110,' + alpha * 0.45 + ')');
         grad.addColorStop(1, 'rgba(255,160,80,0)');
         clx.fillStyle = grad;
         clx.beginPath();
-        clx.arc(px, py, r * 2.2, 0, Math.PI * 2);
+        clx.arc(px, py, r * 1.9, 0, Math.PI * 2);
         clx.fill();
       }
       const cityTex = new THREE.CanvasTexture(cl);
@@ -1788,7 +1804,7 @@ function createBorderOverlay() {
       if (mat) {
         mat.emissiveMap = cityTex;
         mat.emissive = new THREE.Color(0xffcf9a);
-        mat.emissiveIntensity = 1.35;
+        mat.emissiveIntensity = 0.85;
         mat.needsUpdate = true;
       } else {
         window.__pendingCityTex = cityTex;
@@ -2870,6 +2886,7 @@ function confirmSelection() {
   }
 
   document.getElementById('select-phase-hint').classList.remove('visible');
+  document.getElementById('preview-placeholder').classList.add('hidden');
   confirmBtnEl.classList.remove('visible');
   previewFlagEl.classList.remove('visible');
   previewFlagEl.classList.add('sink');
@@ -3276,7 +3293,7 @@ function animate() {
   zdEl.style.display = gameState === 'menu' ? 'none' : 'block';
   controls.rotateSpeed = 0.08 + 0.92 * Math.min(1, (dist - 1.2) / 6.8);
   if (window.__provinceBorderMat) {
-    window.__provinceBorderMat.opacity = 0.85 * (1.0 - Math.min(1, Math.max(0, (dist - 1.2) / 0.8)));
+    window.__provinceBorderMat.opacity = 0.85 * (window.__provinceBorderDim || 1) * (1.0 - Math.min(1, Math.max(0, (dist - 1.2) / 0.8)));
   }
   // LOD：近景微噪声浮现 + 凹凸增强（卫星模式）
   if (window.__detailMat) {
@@ -4882,6 +4899,10 @@ window.__debug = {
   mapMode: (m) => setMapMode(m),
   adjacency(prov) {
     return { land: [...(provinceAdj[prov] || [])], sea: [...(seaAdj[prov] || [])] };
+  },
+  rotateTo(degY, degX) {
+    earthGroup.rotation.y = degY * Math.PI / 180;
+    earthGroup.rotation.x = degX * Math.PI / 180;
   },
   earth() {
     return { rx: earthGroup.rotation.x, ry: earthGroup.rotation.y, camY: camera.position.y, camZ: camera.position.z, camX: camera.position.x,
