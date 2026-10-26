@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>乌托邦</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Noto+Serif+SC:wght@500;600;700&display=swap" rel="stylesheet">
 <script>
 // 前置错误捕获 + file:// 直接打开的友好提示（传统内联脚本，模块失败时也能执行）
 window.__earlyErrors = [];
@@ -60,7 +63,7 @@ canvas{display:block}
 #menu-screen.hidden{opacity:0;pointer-events:none;visibility:hidden;transition:opacity .8s, visibility 0s .8s}
 #menu-screen .menu-title{font-size:48px;font-weight:300;color:#ddeeff;letter-spacing:8px;text-shadow:0 0 60px rgba(100,160,220,.6),0 2px 20px rgba(0,0,0,.8);margin-bottom:10px}
 #menu-screen .menu-sub{font-size:13px;color:rgba(180,200,230,.5);letter-spacing:3px;margin-bottom:60px;text-shadow:0 2px 10px rgba(0,0,0,.8)}
-#menu-screen .menu-btn{width:260px;padding:16px 0;margin:8px 0;border:1px solid rgba(100,160,220,.45);border-radius:12px;background:rgba(10,15,30,.65);backdrop-filter:blur(12px);color:#bbddee;font-size:16px;letter-spacing:4px;cursor:pointer;transition:all .25s}
+#menu-screen .menu-btn{width:260px;padding:16px 0;margin:8px 0;border:1px solid rgba(100,160,220,.45);border-radius:12px;background:rgba(10,15,30,.65);backdrop-filter:none;color:#bbddee;font-size:16px;letter-spacing:4px;cursor:pointer;transition:all .25s}
 #menu-screen .menu-btn:hover{background:rgba(30,50,90,.8);border-color:rgba(140,190,255,.6);color:#fff;transform:scale(1.03)}
 #menu-screen .menu-btn:active{transform:scale(.97)}
 
@@ -91,7 +94,7 @@ canvas{display:block}
 #pause-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,16,.7);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s}
 #pause-overlay.visible{opacity:1;pointer-events:auto}
 #pause-menu{display:flex;flex-direction:column;align-items:center;gap:16px}
-#pause-menu .pause-btn{width:240px;padding:14px 0;border:1px solid rgba(100,180,255,.4);border-radius:12px;background:rgba(10,20,40,.7);backdrop-filter:blur(12px);color:#bbddee;font-size:15px;letter-spacing:4px;cursor:pointer;transition:all .25s}
+#pause-menu .pause-btn{width:240px;padding:14px 0;border:1px solid rgba(100,180,255,.4);border-radius:12px;background:rgba(10,20,40,.7);backdrop-filter:none;color:#bbddee;font-size:15px;letter-spacing:4px;cursor:pointer;transition:all .25s}
 #pause-menu .pause-btn:hover{background:rgba(30,50,90,.8);border-color:rgba(140,190,255,.6);color:#fff;transform:scale(1.04)}
 #pause-menu .pause-btn:active{transform:scale(.96)}
 #pause-menu .pause-btn.danger{border-color:rgba(255,120,100,.4);color:#ffaa99}
@@ -301,6 +304,149 @@ body.theme-parchment #army-panel { background: rgba(58,42,22,.96) !important; }
 body.theme-parchment .menu-title { color: #f0dfb2 !important; }
 body.theme-parchment .aoh-notif { background: rgba(60,44,22,.92) !important; color: #ecdcB0 !important; border-left-color: rgba(230,195,130,.7) !important; }
 body.theme-parchment #time-text, body.theme-parchment .bar-country { color: #f0dfb2 !important; }
+/* ==================== 策略游戏 HUD 覆盖层 ==================== */
+:root{
+  --gold:#c8a45c; --gold-hi:#eed9a4; --gold-dim:rgba(200,164,92,.4);
+  --bevel-hi:rgba(255,232,180,.14);
+}
+#ui-vignette{position:fixed;inset:0;z-index:60;pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%,transparent 58%,rgba(2,3,8,.42) 100%);}
+.menu-title,#boot-title,.popup-title,#bar-country-name,.menu-sub,#boot-sub{
+  font-family:'Noto Serif SC','STZhongsong',Georgia,serif;}
+
+/* ---- 顶栏：铭牌式资源条 ---- */
+#aoh-top-bar{height:54px;padding:0 14px;gap:10px;
+  background:linear-gradient(180deg,rgba(22,27,44,.98) 0%,rgba(13,16,29,.98) 70%,rgba(9,11,20,.98) 100%);
+  border-bottom:1px solid var(--gold-dim);
+  box-shadow:0 1px 0 rgba(255,232,180,.09) inset,0 -6px 18px rgba(0,0,0,.5) inset,0 4px 18px rgba(0,0,0,.55);}
+#aoh-top-bar::after{content:'';position:absolute;left:0;right:0;bottom:3px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(200,164,92,.35) 12%,rgba(200,164,92,.35) 88%,transparent);pointer-events:none}
+#bar-flag-img{border:1px solid var(--gold-dim);border-radius:3px;box-shadow:0 0 0 2px rgba(0,0,0,.5),0 0 10px rgba(200,164,92,.18)}
+#bar-country-name{font-size:17px;font-weight:600;color:var(--gold-hi);letter-spacing:3px;
+  text-shadow:0 1px 0 rgba(0,0,0,.8),0 0 14px rgba(200,164,92,.28);margin-right:14px}
+#aoh-top-bar .bar-sep{width:1px;height:30px;margin:0 4px;
+  background:linear-gradient(180deg,transparent,var(--gold-dim) 30%,var(--gold-dim) 70%,transparent)}
+#aoh-top-bar .bar-res{padding:5px 12px;border-radius:4px;position:relative;transition:background .18s;
+  border:1px solid transparent}
+#aoh-top-bar .bar-res:hover{background:rgba(200,164,92,.08);border-color:rgba(200,164,92,.22)}
+#aoh-top-bar .bar-res .res-icon{font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.8));margin-right:5px}
+#aoh-top-bar .bar-res .res-val{font-size:13px;font-weight:600;color:#e8e2d0;
+  font-variant-numeric:tabular-nums;text-shadow:0 1px 2px rgba(0,0,0,.9)}
+#aoh-top-bar .bar-res .tip{border:1px solid var(--gold-dim);border-radius:6px;padding:5px 11px;
+  font-size:11px;color:#d8cfb4;background:linear-gradient(180deg,rgba(24,29,46,.98),rgba(14,17,30,.98));
+  box-shadow:0 6px 20px rgba(0,0,0,.6)}
+#bar-time{background:linear-gradient(180deg,rgba(30,36,56,.9),rgba(16,20,36,.9));
+  border:1px solid var(--gold-dim);border-radius:6px;padding:4px 10px;gap:8px;
+  box-shadow:0 2px 8px rgba(0,0,0,.45),0 1px 0 var(--bevel-hi) inset}
+#bar-time .time-text{color:var(--gold-hi);font-size:13px;letter-spacing:1px;min-width:120px;
+  text-shadow:0 0 10px rgba(200,164,92,.3)}
+.time-btn{width:26px;height:26px;border-radius:4px;
+  border:1px solid rgba(200,164,92,.3);background:linear-gradient(180deg,rgba(40,48,74,.9),rgba(22,28,48,.9));
+  color:#cbb98a;font-weight:700;
+  box-shadow:0 1px 0 var(--bevel-hi) inset,0 2px 5px rgba(0,0,0,.4)}
+.time-btn:hover{background:linear-gradient(180deg,rgba(60,70,105,.95),rgba(35,42,68,.95));border-color:rgba(200,164,92,.6);color:var(--gold-hi)}
+.time-btn.active{background:linear-gradient(180deg,rgba(120,60,40,.9),rgba(70,35,24,.9));border-color:rgba(255,150,110,.5);color:#ffcdb0}
+
+/* ---- 左侧栏：浮雕图腾按钮 ---- */
+#aoh-left-sidebar{top:54px;width:48px;padding:10px 0;gap:4px;
+  background:linear-gradient(180deg,rgba(22,27,44,.96),rgba(13,16,29,.94));
+  border-right:1px solid var(--gold-dim);
+  box-shadow:1px 0 0 rgba(255,232,180,.06) inset,4px 0 18px rgba(0,0,0,.4)}
+#aoh-left-sidebar .map-mode-btn{width:38px;height:38px;border-radius:5px;
+  border:1px solid rgba(200,164,92,.18);background:linear-gradient(180deg,rgba(34,41,64,.7),rgba(20,25,42,.7));
+  box-shadow:0 1px 0 var(--bevel-hi) inset;transition:all .18s}
+#aoh-left-sidebar .map-mode-btn span:first-child{font-size:17px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+#aoh-left-sidebar .map-mode-btn:hover{border-color:rgba(200,164,92,.55);background:linear-gradient(180deg,rgba(52,60,92,.9),rgba(30,37,60,.9));transform:translateX(1px)}
+#aoh-left-sidebar .map-mode-btn.active{border:1px solid rgba(238,217,164,.75);color:var(--gold-hi);
+  background:linear-gradient(180deg,rgba(96,78,38,.85),rgba(58,47,24,.85));
+  box-shadow:0 0 12px rgba(200,164,92,.3),0 1px 0 rgba(255,232,180,.25) inset}
+#aoh-left-sidebar .map-mode-btn .tip,#aoh-side-btns .sb-btn .tip{border:1px solid var(--gold-dim);border-radius:5px;
+  background:linear-gradient(180deg,rgba(24,29,46,.98),rgba(14,17,30,.98));color:#d8cfb4;
+  box-shadow:0 5px 16px rgba(0,0,0,.55);font-size:11px}
+
+/* ---- 右侧栏：徽章圆钮 ---- */
+#aoh-side-btns{gap:6px;padding:10px 7px}
+#aoh-side-btns .sb-btn{width:46px;height:46px;border-radius:9px;
+  border:1px solid rgba(200,164,92,.28);
+  background:linear-gradient(180deg,rgba(30,37,58,.94),rgba(16,20,36,.94));
+  box-shadow:0 1px 0 var(--bevel-hi) inset,0 3px 10px rgba(0,0,0,.45)}
+#aoh-side-btns .sb-btn span:first-child{font-size:19px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+#aoh-side-btns .sb-btn:hover{border-color:rgba(238,217,164,.65);background:linear-gradient(180deg,rgba(52,60,92,.96),rgba(28,34,56,.96));transform:scale(1.05)}
+#aoh-side-btns .sb-btn.researching{border-color:rgba(255,200,90,.6)}
+
+/* ---- 底栏：命令按钮 ---- */
+#aoh-bottom-panel{height:58px;padding:0 16px;gap:10px;
+  background:linear-gradient(0deg,rgba(22,27,44,.98),rgba(13,16,29,.97) 70%,rgba(9,11,20,.97));
+  border-top:1px solid var(--gold-dim);
+  box-shadow:0 -1px 0 rgba(255,232,180,.08) inset,0 6px 18px rgba(0,0,0,.5) inset,0 -4px 18px rgba(0,0,0,.55)}
+#aoh-bottom-panel .bp-btn{padding:8px 18px;border-radius:5px;font-size:13px;letter-spacing:2px;
+  border:1px solid rgba(200,164,92,.3);
+  background:linear-gradient(180deg,rgba(40,48,74,.9),rgba(20,26,44,.9));
+  color:#d8cfb4;font-family:'Noto Serif SC','STZhongsong',serif;
+  box-shadow:0 1px 0 var(--bevel-hi) inset,0 2px 6px rgba(0,0,0,.4);transition:all .18s}
+#aoh-bottom-panel .bp-btn:hover{border-color:rgba(238,217,164,.65);color:var(--gold-hi);
+  background:linear-gradient(180deg,rgba(58,68,104,.95),rgba(30,37,60,.95));transform:translateY(-1px);
+  box-shadow:0 3px 12px rgba(0,0,0,.5),0 1px 0 rgba(255,232,180,.2) inset}
+#aoh-bottom-panel .bp-btn:active{transform:translateY(0)}
+#aoh-bottom-panel .bp-count{color:#a89a78;font-size:12px;font-variant-numeric:tabular-nums}
+#aoh-bottom-panel .bp-count span{color:var(--gold-hi)}
+
+/* ---- 弹窗：华丽档案框 ---- */
+.aoh-popup{border:1px solid rgba(200,164,92,.5) !important;border-radius:10px;
+  background:linear-gradient(180deg,rgba(26,32,50,.98),rgba(15,18,32,.98)) !important;
+  box-shadow:0 24px 70px rgba(0,0,0,.7),0 0 0 1px rgba(0,0,0,.6),0 1px 0 rgba(255,232,180,.12) inset !important}
+.aoh-popup::before{border-color:rgba(238,217,164,.7) !important}
+.aoh-popup::after{border-color:rgba(238,217,164,.7) !important}
+.aoh-popup .popup-title{font-size:15px;padding:12px 16px;letter-spacing:4px;
+  border-bottom:1px solid var(--gold-dim);
+  background:linear-gradient(180deg,rgba(58,48,28,.5),rgba(30,25,16,.28));
+  text-shadow:0 1px 0 rgba(0,0,0,.8)}
+.aoh-popup .popup-close{border-color:rgba(200,164,92,.4);color:#d8b98a}
+.aoh-popup .popup-close:hover{background:rgba(200,120,80,.25);border-color:rgba(255,150,110,.6)}
+.aoh-popup-overlay{background:rgba(3,4,10,.62);backdrop-filter:blur(3px)}
+
+/* ---- 通知：羊皮纸卷轴 ---- */
+.aoh-notif{background:linear-gradient(180deg,rgba(46,38,22,.96),rgba(32,26,15,.96)) !important;
+  border:1px solid rgba(200,164,92,.4) !important;border-left:3px solid var(--gold) !important;
+  color:#efe2c0 !important;border-radius:6px;padding:9px 14px !important;
+  font-family:'Noto Serif SC','STZhongsong',serif;font-size:13px !important;letter-spacing:.5px;
+  box-shadow:0 6px 20px rgba(0,0,0,.55),0 1px 0 rgba(255,232,180,.15) inset}
+
+/* ---- 右侧省份面板 ---- */
+#aoh-right-panel{background:linear-gradient(180deg,rgba(22,27,44,.97),rgba(13,16,29,.97)) !important;
+  border-left:1px solid var(--gold-dim) !important;
+  box-shadow:-1px 0 0 rgba(255,232,180,.06) inset,-4px 0 18px rgba(0,0,0,.4)}
+#aoh-right-panel .rp-section-title{color:var(--gold) !important;font-weight:600;letter-spacing:2px;
+  display:flex;align-items:center;gap:8px}
+#aoh-right-panel .rp-section-title::after{content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,var(--gold-dim),transparent)}
+#aoh-right-panel .rp-name{font-family:'Noto Serif SC',serif;font-size:17px;letter-spacing:2px;color:var(--gold-hi)}
+#aoh-right-panel .rp-stat{border-bottom:1px dashed rgba(200,164,92,.14);padding:4px 0}
+#aoh-right-panel .rp-value{color:#e8e2d0}
+#aoh-right-panel .rp-flag{border-color:var(--gold-dim)}
+
+/* ---- 军队面板/暂停菜单 ---- */
+#army-panel{background:linear-gradient(180deg,rgba(26,32,50,.97),rgba(15,18,32,.97)) !important;
+  border:1px solid rgba(200,164,92,.45) !important;border-radius:8px}
+#army-panel .ap-title{font-family:'Noto Serif SC',serif;letter-spacing:1px}
+#pause-overlay{background:rgba(2,3,9,.72);backdrop-filter:blur(5px)}
+#pause-menu .pause-btn{width:270px;font-family:'Noto Serif SC',serif;letter-spacing:5px;
+  border:1px solid rgba(200,164,92,.4);border-radius:7px;
+  background:linear-gradient(180deg,rgba(38,46,72,.95),rgba(19,24,42,.95));
+  box-shadow:0 1px 0 var(--bevel-hi) inset,0 4px 14px rgba(0,0,0,.5)}
+#pause-menu .pause-btn:hover{border-color:rgba(238,217,164,.7);color:var(--gold-hi);transform:scale(1.03)}
+#pause-indicator{font-family:'Noto Serif SC',serif}
+
+/* ---- 主菜单 ---- */
+#menu-screen{background:radial-gradient(ellipse at 50% 30%,rgba(6,9,20,.25),rgba(2,3,8,.72) 78%)}
+#menu-screen .menu-btn{width:280px;border-radius:7px;letter-spacing:6px;font-family:'Noto Serif SC',serif;font-size:16px;
+  border:1px solid rgba(200,164,92,.42);
+  background:linear-gradient(180deg,rgba(30,37,58,.92),rgba(14,18,32,.94));
+  box-shadow:0 1px 0 var(--bevel-hi) inset,0 4px 16px rgba(0,0,0,.55)}
+#menu-screen .menu-title{font-size:54px;letter-spacing:20px;text-indent:20px;color:#f0e6cc;
+  text-shadow:0 0 60px rgba(200,164,92,.5),0 2px 24px rgba(0,0,0,.9)}
+#menu-screen .menu-sub{color:rgba(200,180,130,.6);letter-spacing:7px}
+@keyframes sbPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,200,90,0)}50%{box-shadow:0 0 12px 3px rgba(255,200,90,.25)}}
 </style>
 </head>
 <body>
@@ -311,6 +457,8 @@ body.theme-parchment #time-text, body.theme-parchment .bar-country { color: #f0d
   <div id="boot-bar"><div id="boot-bar-fill"></div></div>
   <div id="boot-status">正在初始化…</div>
 </div>
+
+<div id="ui-vignette"></div>
 
 <div id="menu-screen" class="hidden">
   <div class="menu-title">乌 托 邦</div>
