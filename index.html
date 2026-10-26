@@ -29,7 +29,7 @@ window.__bootTick = setInterval(function () {
       var boot = document.getElementById('boot-screen');
       var menu = document.getElementById('menu-screen');
       if (boot) { boot.classList.add('hidden'); setTimeout(function () { boot.remove(); }, 900); }
-      if (menu) menu.classList.remove('hidden');
+      if (menu && !window.__gameStarted) menu.classList.remove('hidden');
     }, 450);
   }
 }, 150);
@@ -772,7 +772,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
+renderer.toneMappingExposure = 1.02;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
@@ -946,7 +946,7 @@ document.addEventListener('touchend', (e) => {
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.5, 0.4, 0.85);
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.32, 0.5, 0.88);
 bloomPass.threshold = 0.1; bloomPass.strength = 0.6; bloomPass.radius = 0.5;
 composer.addPass(bloomPass);
 
@@ -1176,7 +1176,7 @@ function createAtmosphere() {
       // 晨昏线暖橙增辉
       float term = pow(1.0 - abs(sunF), 7.0) * smoothstep(-0.30, 0.22, sunF);
       col += vec3(0.95, 0.45, 0.16) * term * 0.85;
-      gl_FragColor = vec4(col, rim * (0.30 + 0.34 * dayness));
+      gl_FragColor = vec4(col, rim * (0.18 + 0.22 * dayness));
     }`;
   const atmoFragOuter = `varying vec3 vN; varying vec3 vP; uniform vec3 uSunDirW;
     void main(){
@@ -3040,10 +3040,40 @@ const hemiLight = new THREE.HemisphereLight(0x99bbee, 0x223344, 0.16);
 scene.add(hemiLight);
 
 // 太阳本体：核心亮斑 + 大范围暖辉（加法混合）
+// 光照跟随相机视角（文明5/6式舞台光）：无论怎么拖动地球，正对镜头的一面永远是白天，
+// 晨昏线只在球体边缘——否则玩家拖动地球时"太阳照不到看见的面"，观感即'光做反了'
 const sunPivot = new THREE.Group();
 scene.add(sunPivot);
 const SUN_DIST = 38;
 const SUN_DIR0 = new THREE.Vector3(1, 0.34, 0.62).normalize();
+const __camDir = new THREE.Vector3();
+const __rightDir = new THREE.Vector3();
+const __worldUp = new THREE.Vector3(0, 1, 0);
+const __sunDir = new THREE.Vector3();
+function updateSunFollow() {
+  __camDir.copy(camera.position).normalize();
+  __rightDir.crossVectors(__worldUp, __camDir).normalize();
+  // 光照方向：视角右上方 → 照亮正对镜头的面（略偏右），晨昏线在球体左右边缘
+  __sunDir.copy(__camDir).multiplyScalar(0.82)
+    .addScaledVector(__rightDir, 0.5)
+    .addScaledVector(__worldUp, 0.28)
+    .normalize();
+  sunLight.position.copy(__sunDir).multiplyScalar(12);
+  // 太阳本体：固定在画面左上角（相机坐标系定位+恒定屏幕大小，作为视觉符号；
+  // 物理上"照亮正面的光源"必然在相机身后，画面内不可见，故太阳光斑单独安放）
+  const __fwd = new THREE.Vector3();
+  camera.getWorldDirection(__fwd);
+  const __scrRight = new THREE.Vector3().crossVectors(__fwd, __worldUp).normalize();
+  const __scrUp = new THREE.Vector3().crossVectors(__scrRight, __fwd).normalize();
+  const camDist = camera.position.length();
+  sunCore.position.copy(camera.position)
+    .addScaledVector(__fwd, camDist * 0.55)
+    .addScaledVector(__scrRight, -camDist * 0.5)
+    .addScaledVector(__scrUp, camDist * 0.3);
+  sunGlow.position.copy(sunCore.position);
+  sunGlow.scale.setScalar(camDist * 0.16);
+  sunCore.scale.setScalar(camDist * 0.05);
+}
 function makeGlowTexture(inner, outer) {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
@@ -3067,7 +3097,7 @@ sunGlow.position.copy(sunCore.position);
 sunGlow.scale.set(10, 10, 1);
 sunPivot.add(sunGlow);
 // 方向光挂在与太阳同方向
-const sunLight = new THREE.DirectionalLight(0xfff1d8, 2.3);
+const sunLight = new THREE.DirectionalLight(0xfff1d8, 1.45);
 sunLight.position.copy(SUN_DIR0).multiplyScalar(12);
 sunPivot.add(sunLight);
 window.__sunPivot = sunPivot;
@@ -3187,9 +3217,9 @@ function animate() {
   requestAnimationFrame(animate);
   window.__frameCount = (window.__frameCount || 0) + 1;
   try {
-  // 太阳缓慢巡天（约4分钟一周）+ 更新地球昼夜 shader
+  // 太阳跟随视角 + 更新地球昼夜 shader
   if (window.__sunPivot) {
-    window.__sunPivot.rotation.y += 0.00042;
+    updateSunFollow();
     window.__updateSunUniform();
     // 大气散射太阳方向（世界空间）
     if (window.__atmoMats && window.__earthMatRef) {
@@ -4857,6 +4887,7 @@ console.log('3D HD Earth - AOH3 Style · 模块化一期改造');
 // ===== 调试/自动化测试桥 =====
 window.__debug = {
   startAs(en, cn) {
+    window.__gameStarted = true;
     if (gameState === 'menu') enterSelecting();
     // 与真实点击一致：带上国家 feature，使入场旋转/俯冲动画走完整路径
     const feat = window.__countriesGeoJSON
@@ -4903,6 +4934,12 @@ window.__debug = {
   adjacency(prov) {
     return { land: [...(provinceAdj[prov] || [])], sea: [...(seaAdj[prov] || [])] };
   },
+  sunInfo() {
+    const wp = new THREE.Vector3();
+    sunCore.getWorldPosition(wp);
+    return { sunWorld: wp.toArray().map(v => +v.toFixed(2)), sunScreenDir: null };
+  },
+  setCam(x, y, z) { camera.position.set(x, y, z); },
   rotateTo(degY, degX) {
     earthGroup.rotation.y = degY * Math.PI / 180;
     earthGroup.rotation.x = degX * Math.PI / 180;
