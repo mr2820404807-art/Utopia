@@ -3418,7 +3418,9 @@ document.getElementById('btn-to-menu').addEventListener('click', () => {
   previewGradientEl.classList.remove('visible');
   previewGradientEl.classList.add('sink');
   confirmBtnEl.classList.remove('visible');
-  document.getElementById('preview-placeholder').classList.remove('hidden');
+  document.getElementById('preview-placeholder').classList.add('hidden');
+  menuScreen.classList.remove('hidden');
+  document.getElementById('js-error-box').style.display = 'none';
   earthAnim.from = earthGroup.position.x;
   earthAnim.to = 0;
   earthAnim.t = 0;
@@ -4289,7 +4291,8 @@ function refreshAllArmyMarkers() {
     const t0 = performance.now();
     while (idx < list.length && performance.now() - t0 < 6) {
       const p = list[idx++];
-      createArmyMarker(p, armies[p].troops, armies[p].owner);
+      const g = armies[p];
+      if (g && g.troops > 0) createArmyMarker(p, g.troops, g.owner);
     }
     if (idx < list.length) requestAnimationFrame(step);
   };
