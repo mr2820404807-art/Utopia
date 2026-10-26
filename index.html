@@ -3187,10 +3187,10 @@ scene.add(ambientLight);
 const hemiLight = new THREE.HemisphereLight(0x99bbee, 0x223344, 0.16);
 scene.add(hemiLight);
 
-// 太阳本体：宇宙中的固定天体（与星空同属绝对参考系）
-// 拖动地球时太阳不动、晨昏线固定——转到夜面看到城市灯光，天体逻辑自洽
+// 太阳本体：与星空同属地球参考系——拖动地球时整个宇宙（星空+太阳+光）一起转，
+// 晨昏线在贴图上固定，转到哪面哪面都是白天
 const sunPivot = new THREE.Group();
-scene.add(sunPivot);
+earthGroup.add(sunPivot);
 const SUN_DIST = 46;
 // 初始方向朝初始视角（美洲）偏右上：开屏即白天，太阳可见于画面右上方
 const SUN_DIR0 = new THREE.Vector3(0.30, 0.26, 0.92).normalize();
@@ -3221,10 +3221,7 @@ const sunLight = new THREE.DirectionalLight(0xfff1d8, 1.45);
 sunLight.position.copy(SUN_DIR0).multiplyScalar(12);
 sunCore.position.copy(SUN_DIR0).multiplyScalar(SUN_DIST);
 sunGlow.position.copy(sunCore.position);
-// 太阳本体隐藏：固定天体光照下，"照亮正面"时太阳必在相机身后（画面外）——
-// 真实太空中也是如此。太阳方向由光照与晨昏线体现
-sunCore.visible = false;
-sunGlow.visible = false;
+// 太阳本体可见：随宇宙一起转动，转到地球背后时被自然遮挡（depthTest:true）
 sunLight.position.copy(SUN_DIR0).multiplyScalar(12);
 sunPivot.add(sunLight);
 window.__sunPivot = sunPivot;
@@ -3376,9 +3373,12 @@ function animate() {
     }
   }
 
-  // 星空固定为绝对参考系：拖动地球时宇宙不动（只有地球在转）
+  // 星空与地球同步：拖动=整个宇宙场景一起转（太阳同属此参考系）
   const sg = scene.getObjectByName('starGroup');
-  if (sg) sg.rotation.y += 0.00002;
+  if (sg) {
+    sg.rotation.y = earthGroup.rotation.y;
+    sg.rotation.x = earthGroup.rotation.x;
+  }
 
   if (earthAnim.active) {
     const now = performance.now();
